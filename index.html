@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en" class="calcite-mode-dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placer AI x Retail | Site Intelligence Platform</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/dark/main.css">
+  <link rel="stylesheet" href="https://js.arcgis.com/calcite-components/2.13.2/calcite.css">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: "Avenir Next", "Helvetica Neue", sans-serif; }
+    #viewDiv { width: 100%; height: 100%; }
+    #splash { position: fixed; inset: 0; background: linear-gradient(135deg, #070b1a 0%, #0f1a3a 50%, #0a1628 100%); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    #splash.hidden { opacity: 0; pointer-events: none; transition: opacity 0.6s ease; }
+    .splash-inner { text-align: center; max-width: 520px; padding: 40px; }
+    .splash-logo { font-size: 2.6em; font-weight: 300; color: #e0e0e0; letter-spacing: 3px; margin-bottom: 6px; }
+    .splash-logo span { color: #7c3aed; font-weight: 400; }
+    .splash-sub { font-size: 1.05em; color: #6b7b8d; margin-bottom: 36px; letter-spacing: 1px; }
+    .splash-desc { font-size: 0.88em; color: #4a5568; margin-bottom: 28px; line-height: 1.7; }
+    .splash-note { margin-top: 14px; font-size: 0.73em; color: #3d4a5c; }
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+    .stat-grid.two-col { grid-template-columns: repeat(2, 1fr); }
+    .stat-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px 8px; text-align: center; }
+    .stat-value { font-size: 1.25em; font-weight: 700; color: #7c3aed; }
+    .stat-label { font-size: 0.7em; color: #7b8a9e; margin-top: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .score-wrap { display: flex; align-items: center; gap: 20px; padding: 8px 0; }
+    .score-circle { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
+    .score-circle svg { width: 100%; height: 100%; }
+    .score-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .score-num .val { font-size: 1.8em; font-weight: 700; line-height: 1; }
+    .score-num .lbl { font-size: 0.6em; color: #7b8a9e; }
+    .score-bars { flex: 1; }
+    .sbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+    .sbar-label { width: 56px; font-size: 0.75em; color: #7b8a9e; }
+    .sbar-track { flex: 1; height: 7px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+    .sbar-fill { height: 100%; border-radius: 4px; transition: width 1s ease; }
+    .sbar-val { width: 26px; text-align: right; font-size: 0.8em; font-weight: 600; }
+    .brand-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .brand-name { width: 110px; font-size: 0.78em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #b0bec5; }
+    .brand-track { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .brand-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+    .brand-val { width: 60px; text-align: right; font-size: 0.75em; color: #7b8a9e; }
+    .rec { padding: 10px 12px; margin-bottom: 6px; border-radius: 6px; font-size: 0.82em; line-height: 1.5; }
+    .rec-pos { background: rgba(0,230,118,0.07); border-left: 3px solid #00e676; color: #a5d6a7; }
+    .rec-warn { background: rgba(255,214,0,0.07); border-left: 3px solid #ffd600; color: #fff176; }
+    .rec-neg { background: rgba(255,23,68,0.07); border-left: 3px solid #ff1744; color: #ef9a9a; }
+    .hidden { display: none !important; }
+    #customBanner { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); background: rgba(124,58,237,0.92); color: #fff; padding: 8px 24px; border-radius: 20px; font-size: 0.88em; z-index: 50; display: none; pointer-events: none; box-shadow: 0 2px 12px rgba(124,58,237,0.3); }
+    .section-title { font-size: 0.78em; color: #7b8a9e; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 6px 0; }
+    .cat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 0.85em; }
+    .cat-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    calcite-shell { height: 100%; }
+    .dwell-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .dwell-label { width: 80px; font-size: 0.75em; color: #7b8a9e; }
+    .dwell-track { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .dwell-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+    .dwell-val { width: 50px; text-align: right; font-size: 0.75em; color: #7b8a9e; }
+  </style>
+</head>
+<body>
+  <!-- Splash Screen -->
+  <div id="splash">
+    <div class="splash-inner">
+      <div class="splash-logo">PLACER <span>x</span> RETAIL</div>
+      <div class="splash-sub">Site Intelligence Platform &mdash; Los Angeles</div>
+      <div class="splash-desc">
+        Leverage Placer AI foot traffic data to analyze retail locations,
+        evaluate site performance, and unlock demographic insights with ArcGIS GeoEnrichment
+        across 24 major retail brands in the LA metro area.
+      </div>
+      <calcite-input id="apiKeyInput" type="password" placeholder="Enter your ArcGIS API Key" icon="key" scale="l" style="max-width: 420px; margin: 0 auto 16px;"></calcite-input>
+      <calcite-button id="launchBtn" scale="l" icon-start="launch" width="full" style="max-width: 420px;">Launch with API Key</calcite-button>
+      <div style="display:flex;align-items:center;gap:12px;max-width:420px;margin:18px auto;">
+        <div style="flex:1;height:1px;background:#2d3748;"></div>
+        <span style="color:#4a5568;font-size:0.85em;">or</span>
+        <div style="flex:1;height:1px;background:#2d3748;"></div>
+      </div>
+      <calcite-button id="demoBtn" scale="l" icon-start="play" width="full" appearance="outline" kind="neutral" style="max-width:420px;">Explore with Demo Data</calcite-button>
+      <div class="splash-note">No API key? Demo mode uses simulated demographics with real Placer AI foot traffic data</div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="mainApp" class="hidden" style="height:100%;width:100%;">
+    <calcite-shell>
+      <calcite-navigation slot="header">
+        <calcite-navigation-logo slot="logo" heading="Placer AI x Retail" description="Site Intelligence Platform" icon="urban-model"></calcite-navigation-logo>
+        <div slot="content-end" style="display:flex;align-items:center;gap:10px;padding-right:14px;">
+          <calcite-chip id="modeChip" icon="exclamation-mark-triangle" appearance="solid" kind="danger" scale="s" class="hidden" style="font-weight:600;">DEMO MODE</calcite-chip>
+          <calcite-chip icon="pin" appearance="outline-fill" kind="neutral" scale="s">1,156 Locations</calcite-chip>
+          <calcite-chip icon="walking" appearance="outline-fill" kind="brand" scale="s">17.2M Weekly Visits</calcite-chip>
+          <calcite-chip icon="organization" appearance="outline-fill" kind="neutral" scale="s">24 Brands</calcite-chip>
+        </div>
+      </calcite-navigation>
+      <div id="viewDiv"></div>
+      <div id="customBanner">Click on the map to analyze any location</div>
+      <calcite-shell-panel slot="panel-end" position="end" width-scale="l">
+        <calcite-panel heading="Site Analysis" description="Placer AI Retail Location Intelligence">
+          <!-- Store Selection -->
+          <calcite-block heading="Store Selection" icon-start="pin" open collapsible>
+            <calcite-label>Retail Brand
+              <calcite-select id="brandSelect"><calcite-option value="" selected>Select a brand...</calcite-option></calcite-select>
+            </calcite-label>
+            <calcite-label style="margin-top:8px;">Store Location
+              <calcite-select id="storeSelect" disabled><calcite-option value="" selected>Select a brand first...</calcite-option></calcite-select>
+            </calcite-label>
+            <calcite-label style="margin-top:8px;">Analysis Radius
+              <calcite-select id="radiusSelect">
+                <calcite-option value="0.5">0.5 miles</calcite-option>
+                <calcite-option value="1" selected>1 mile</calcite-option>
+                <calcite-option value="2">2 miles</calcite-option>
+                <calcite-option value="3">3 miles</calcite-option>
+                <calcite-option value="5">5 miles</calcite-option>
+              </calcite-select>
+            </calcite-label>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+              <calcite-button id="analyzeBtn" icon-start="analysis" width="full" disabled>Analyze Store</calcite-button>
+            </div>
+            <div style="margin-top:10px;display:flex;align-items:center;">
+              <calcite-switch id="customSwitch"></calcite-switch>
+              <span style="font-size:0.82em;color:#7b8a9e;margin-left:8px;">Click map to analyze custom location</span>
+            </div>
+          </calcite-block>
+          <!-- Enrichment Variables -->
+          <calcite-block heading="Enrichment Variables" icon-start="data-check" collapsible>
+            <calcite-notice id="demoNotice" icon="exclamation-mark-triangle" kind="warning" scale="s" class="hidden" open style="margin-bottom:8px;"><div slot="message" style="font-size:0.78em;">Demo mode: demographics are simulated. Enter an API key on reload for live GeoEnrichment data.</div></calcite-notice>
+            <calcite-label layout="inline"><calcite-checkbox id="chkDemo" checked></calcite-checkbox>Demographics (Pop, Households, Age)</calcite-label>
+            <calcite-label layout="inline"><calcite-checkbox id="chkIncome" checked></calcite-checkbox>Income &amp; Wealth</calcite-label>
+            <calcite-label layout="inline"><calcite-checkbox id="chkSpending" checked></calcite-checkbox>Consumer Spending</calcite-label>
+            <calcite-label layout="inline"><calcite-checkbox id="chkDaytime"></calcite-checkbox>Daytime Population</calcite-label>
+            <calcite-label layout="inline"><calcite-checkbox id="chkHousing"></calcite-checkbox>Housing (Ownership, Values)</calcite-label>
+            <calcite-label style="margin-top:8px;">Custom Variable
+              <calcite-input id="customVar" placeholder="e.g. KeyUSFacts.DIVINDX_CY" icon="add-layer" clearable scale="s"></calcite-input>
+            </calcite-label>
+          </calcite-block>
+          <!-- Layer Controls -->
+          <calcite-block heading="Layer Controls" icon-start="layers" collapsible>
+            <calcite-label layout="inline"><calcite-switch id="heatSwitch"></calcite-switch>Heatmap View</calcite-label>
+            <calcite-label layout="inline"><calcite-switch id="storeVis" checked></calcite-switch>Selected Brand Highlights</calcite-label>
+          </calcite-block>
+          <!-- Publish to AGOL -->
+          <calcite-block heading="Publish to ArcGIS Online" icon-start="upload-to" collapsible>
+            <calcite-notice icon="information" scale="s" open style="margin-bottom:8px;"><div slot="message" style="font-size:0.8em;">Upload the Placer AI dataset to your ArcGIS Online account as a hosted feature service.</div></calcite-notice>
+            <calcite-label>ArcGIS Online Username
+              <calcite-input id="agolUser" placeholder="username" icon="user" scale="s"></calcite-input>
+            </calcite-label>
+            <calcite-label style="margin-top:6px;">Password
+              <calcite-input id="agolPass" type="password" placeholder="password" icon="lock" scale="s"></calcite-input>
+            </calcite-label>
+            <calcite-label style="margin-top:6px;">Portal URL
+              <calcite-input id="agolPortal" value="https://www.arcgis.com" icon="services" scale="s"></calcite-input>
+            </calcite-label>
+            <calcite-button id="publishBtn" icon-start="upload-to" width="full" appearance="outline" style="margin-top:10px;" scale="s">Publish Data to AGOL</calcite-button>
+            <div id="publishStatus" style="margin-top:8px;font-size:0.8em;color:#7b8a9e;"></div>
+          </calcite-block>
+          <!-- Loading -->
+          <div id="loadingBox" class="hidden" style="text-align:center;padding:24px;">
+            <calcite-loader label="Analyzing..." type="indeterminate"></calcite-loader>
+            <div style="margin-top:10px;color:#7b8a9e;font-size:0.9em;">Running site analysis...</div>
+          </div>
+          <!-- Results -->
+          <div id="resultsBox" class="hidden">
+            <calcite-block heading="Site Score" icon-start="gauge" open collapsible><div id="scoreContent"></div></calcite-block>
+            <calcite-block heading="Area Demographics" icon-start="group" open collapsible><div id="demoContent"></div></calcite-block>
+            <calcite-block heading="Foot Traffic Intelligence" icon-start="walking" open collapsible><div id="trafficContent"></div></calcite-block>
+            <calcite-block heading="Strategic Insights" icon-start="lightbulb" open collapsible><div id="recsContent"></div></calcite-block>
+          </div>
+        </calcite-panel>
+      </calcite-shell-panel>
+    </calcite-shell>
+  </div>
+
+  <script type="module" src="https://js.arcgis.com/calcite-components/2.13.2/calcite.esm.js"></script>
+  <script src="https://js.arcgis.com/4.30/"></script>
+  <script>
+    const GEOENRICH_URL = "https://geoenrich.arcgis.com/arcgis/rest/services/World/geoenrichmentserver/Geoenrichment/enrich";
+    const VAR_GROUPS = {
+      demo:     ["KeyUSFacts.TOTPOP_CY","KeyUSFacts.TOTHH_CY","KeyUSFacts.AVGHHSZ_CY","KeyUSFacts.MEDAGE_CY"],
+      income:   ["KeyUSFacts.MEDHINC_CY","KeyUSFacts.PCI_CY","KeyUSFacts.AVGHINC_CY"],
+      spending: ["KeyUSFacts.X5001_X","KeyUSFacts.X1002_X"],
+      daytime:  ["KeyUSFacts.DPOP_CY","KeyUSFacts.DPOPWRK_CY","KeyUSFacts.DPOPRES_CY"],
+      housing:  ["KeyUSFacts.OWNER_CY","KeyUSFacts.RENTER_CY","KeyUSFacts.MEDVAL_CY","KeyUSFacts.AVGVAL_CY"]
+    };
+    const VAR_META = {
+      TOTPOP_CY:  { label: "Population", fmt: "num" },
+      TOTHH_CY:   { label: "Households", fmt: "num" },
+      AVGHHSZ_CY: { label: "Avg HH Size", fmt: "dec" },
+      MEDAGE_CY:  { label: "Median Age", fmt: "dec" },
+      MEDHINC_CY: { label: "Median HH Inc", fmt: "cur" },
+      PCI_CY:     { label: "Per Capita Inc", fmt: "cur" },
+      AVGHINC_CY: { label: "Avg HH Inc", fmt: "cur" },
+      X5001_X:    { label: "Apparel Spend", fmt: "cur" },
+      X1002_X:    { label: "Grocery Spend", fmt: "cur" },
+      DPOP_CY:    { label: "Daytime Pop", fmt: "num" },
+      DPOPWRK_CY: { label: "Workers", fmt: "num" },
+      DPOPRES_CY: { label: "Residents", fmt: "num" },
+      OWNER_CY:   { label: "Owners", fmt: "num" },
+      RENTER_CY:  { label: "Renters", fmt: "num" },
+      MEDVAL_CY:  { label: "Median Home Val", fmt: "cur" },
+      AVGVAL_CY:  { label: "Avg Home Val", fmt: "cur" },
+      DIVINDX_CY: { label: "Diversity Idx", fmt: "dec" }
+    };
+
+    let mapView, placerLayer, gfxLayer, storeLayer, pointRenderer;
+    let apiKey = null, demoMode = false, customMode = false;
+    let allFeatures = [];
+
+    function launch(isDemo) {
+      if (!isDemo) {
+        apiKey = document.getElementById("apiKeyInput").value.trim();
+        if (!apiKey) { document.getElementById("apiKeyInput").setFocus(); return; }
+      } else {
+        demoMode = true;
+        document.getElementById("modeChip").classList.remove("hidden");
+        document.getElementById("demoNotice").classList.remove("hidden");
+      }
+      document.getElementById("splash").classList.add("hidden");
+      document.getElementById("mainApp").classList.remove("hidden");
+      initApp();
+    }
+
+    document.getElementById("launchBtn").addEventListener("click", () => launch(false));
+    document.getElementById("demoBtn").addEventListener("click", () => launch(true));
+    document.getElementById("apiKeyInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") launch(false);
+    });
+
+    function initApp() {
+      require([
+        "esri/Map","esri/views/MapView","esri/layers/GeoJSONLayer",
+        "esri/layers/GraphicsLayer","esri/layers/FeatureLayer","esri/Graphic",
+        "esri/geometry/Point","esri/geometry/geometryEngine",
+        "esri/layers/WebTileLayer","esri/Basemap",
+        "esri/widgets/Legend","esri/widgets/Home","esri/widgets/Expand","esri/config"
+      ], function(Map, MapView, GeoJSONLayer, GraphicsLayer, FeatureLayer, Graphic, Point, geometryEngine, WebTileLayer, Basemap, Legend, Home, Expand, esriConfig) {
+
+        if (apiKey) esriConfig.apiKey = apiKey;
+
+        let basemap;
+        if (demoMode) {
+          basemap = new Basemap({ baseLayers: [new WebTileLayer({
+            urlTemplate: "https://{subDomain}.basemaps.cartocdn.com/dark_all/{level}/{col}/{row}.png",
+            subDomains: ["a","b","c","d"], copyright: "CartoDB Dark Matter"
+          })]});
+        } else {
+          basemap = "dark-gray-vector";
+        }
+        const map = new Map({ basemap });
+        mapView = new MapView({
+          container: "viewDiv", map: map,
+          center: [-118.15, 34.0], zoom: 9,
+          popup: { dockEnabled: true, dockOptions: { position: "bottom-left", breakpoint: false } }
+        });
+
+        gfxLayer = new GraphicsLayer({ title: "Analysis Area", listMode: "hide" });
+        map.add(gfxLayer);
+
+        // --- Placer AI Layer ---
+        const renderer = {
+          type: "simple",
+          symbol: { type: "simple-marker", style: "circle", size: 6, color: [167,139,250,0.7], outline: { color: [124,58,237,0.4], width: 0.5 } },
+          visualVariables: [
+            { type: "size", field: "avg_weekly_foottraffic",
+              stops: [{ value:500, size:4 },{ value:5000, size:10 },{ value:20000, size:18 },{ value:60000, size:28 }] },
+            { type: "color", field: "avg_weekly_foottraffic",
+              stops: [{ value:500, color:"#4575b4" },{ value:5000, color:"#fee090" },{ value:20000, color:"#f46d43" },{ value:60000, color:"#a50026" }] },
+            { type: "opacity", field: "avg_weekly_foottraffic",
+              stops: [{ value:100, opacity:0.45 },{ value:10000, opacity:0.95 }] }
+          ]
+        };
+        placerLayer = new GeoJSONLayer({
+          url: "data/placer_visits.geojson", title: "Placer AI Foot Traffic",
+          copyright: "Placer AI",
+          renderer: renderer,
+          popupTemplate: {
+            title: "<span style='color:#7c3aed'>{name}</span>",
+            content: [{ type: "fields", fieldInfos: [
+              { fieldName: "address", label: "Address" },
+              { fieldName: "city", label: "City" },
+              { fieldName: "category_group", label: "Category" },
+              { fieldName: "avg_weekly_foottraffic", label: "Avg Weekly Foot Traffic", format: { digitSeparator: true, places: 0 } },
+              { fieldName: "avg_dwell_time", label: "Avg Dwell Time (min)", format: { places: 1 } },
+              { fieldName: "avg_unique_visitors", label: "Avg Unique Visitors", format: { digitSeparator: true, places: 0 } },
+              { fieldName: "median_hhi", label: "Visitor Median HHI", format: { digitSeparator: true, places: 0 } }
+            ]}]
+          },
+          orderBy: [{ field: "avg_weekly_foottraffic", order: "ascending" }]
+        });
+        map.add(placerLayer);
+        pointRenderer = renderer;
+
+        // --- Store highlight layer (populated when brand selected) ---
+        storeLayer = new FeatureLayer({
+          source: [], objectIdField: "ObjectID",
+          fields: [
+            { name: "ObjectID", type: "oid" },
+            { name: "name", type: "string" },
+            { name: "address", type: "string" },
+            { name: "city", type: "string" },
+            { name: "foottraffic", type: "integer" }
+          ],
+          title: "Selected Brand Stores",
+          renderer: { type: "simple", symbol: {
+            type: "simple-marker", style: "diamond", size: 14,
+            color: [124,58,237,0.9], outline: { color: [255,255,255,1], width: 2 }
+          }},
+          popupTemplate: { title: "{name}", content: "{address}, {city}" },
+          labelingInfo: [{ labelExpressionInfo: { expression: "$feature.name + ' (' + $feature.city + ')'" },
+            symbol: { type: "text", color: [167,139,250,1], haloColor: [0,0,0,0.8], haloSize: 1.5,
+              font: { size: 9, weight: "bold" } },
+            labelPlacement: "above-right", minScale: 300000
+          }]
+        });
+        map.add(storeLayer);
+
+        // --- Widgets ---
+        mapView.ui.add(new Home({ view: mapView }), "top-left");
+        const legend = new Legend({ view: mapView, style: "card" });
+        mapView.ui.add(new Expand({ view: mapView, content: legend, expandIcon: "legend", group: "bottom-left" }), "bottom-left");
+
+        // --- Load all features for brand/store dropdowns ---
+        placerLayer.when(() => {
+          placerLayer.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true }).then(result => {
+            allFeatures = result.features;
+            populateBrands();
+          });
+        });
+
+        function populateBrands() {
+          const brands = [...new Set(allFeatures.map(f => f.attributes.name))].sort();
+          const sel = document.getElementById("brandSelect");
+          brands.forEach(b => {
+            const opt = document.createElement("calcite-option");
+            opt.value = b;
+            opt.textContent = b;
+            sel.appendChild(opt);
+          });
+        }
+
+        // --- Brand selection -> populate stores ---
+        document.getElementById("brandSelect").addEventListener("calciteSelectChange", (e) => {
+          const brand = e.target.value;
+          const storeSel = document.getElementById("storeSelect");
+          storeSel.innerHTML = '<calcite-option value="" selected>Select a store...</calcite-option>';
+
+          if (!brand) {
+            storeSel.disabled = true;
+            document.getElementById("analyzeBtn").disabled = true;
+            storeLayer.queryFeatures().then(r => { if (r.features.length) storeLayer.applyEdits({ deleteFeatures: r.features }); });
+            return;
+          }
+
+          storeSel.disabled = false;
+          const stores = allFeatures.filter(f => f.attributes.name === brand)
+            .sort((a, b) => b.attributes.avg_weekly_foottraffic - a.attributes.avg_weekly_foottraffic);
+
+          stores.forEach((f, i) => {
+            const opt = document.createElement("calcite-option");
+            opt.value = String(i);
+            opt.textContent = `${f.attributes.city} - ${f.attributes.address} (${f.attributes.avg_weekly_foottraffic.toLocaleString()} visits/wk)`;
+            opt.dataset.lat = f.geometry.latitude;
+            opt.dataset.lng = f.geometry.longitude;
+            sel.appendChild(opt);
+          });
+
+          // Update store highlight layer
+          const graphics = stores.map((f, i) => new Graphic({
+            geometry: f.geometry,
+            attributes: { ObjectID: i, name: f.attributes.name, address: f.attributes.address, city: f.attributes.city, foottraffic: f.attributes.avg_weekly_foottraffic }
+          }));
+          storeLayer.queryFeatures().then(r => {
+            storeLayer.applyEdits({ deleteFeatures: r.features, addFeatures: graphics });
+          });
+        });
+
+        document.getElementById("storeSelect").addEventListener("calciteSelectChange", () => {
+          document.getElementById("analyzeBtn").disabled = !document.getElementById("storeSelect").value;
+        });
+
+        document.getElementById("analyzeBtn").addEventListener("click", () => {
+          const brand = document.getElementById("brandSelect").value;
+          const storeIdx = parseInt(document.getElementById("storeSelect").value);
+          const stores = allFeatures.filter(f => f.attributes.name === brand)
+            .sort((a, b) => b.attributes.avg_weekly_foottraffic - a.attributes.avg_weekly_foottraffic);
+          const store = stores[storeIdx];
+          if (store) {
+            runAnalysis(store.geometry.latitude, store.geometry.longitude,
+              `${brand} - ${store.attributes.city}`, geometryEngine, Graphic);
+          }
+        });
+
+        document.getElementById("customSwitch").addEventListener("calciteSwitchChange", (e) => {
+          customMode = e.target.checked;
+          document.getElementById("customBanner").style.display = customMode ? "block" : "none";
+          mapView.container.style.cursor = customMode ? "crosshair" : "default";
+        });
+
+        document.getElementById("heatSwitch").addEventListener("calciteSwitchChange", (e) => {
+          if (e.target.checked) {
+            placerLayer.renderer = {
+              type: "heatmap",
+              field: "avg_weekly_foottraffic",
+              colorStops: [
+                { color: "rgba(10,10,40,0)", ratio: 0 },
+                { color: "#3b0764", ratio: 0.1 },
+                { color: "#7c3aed", ratio: 0.3 },
+                { color: "#c084fc", ratio: 0.5 },
+                { color: "#fbbf24", ratio: 0.7 },
+                { color: "#f97316", ratio: 0.85 },
+                { color: "#ef4444", ratio: 1 }
+              ],
+              radius: 14, minDensity: 0, maxDensity: 0.005
+            };
+          } else {
+            placerLayer.renderer = pointRenderer;
+          }
+        });
+
+        document.getElementById("storeVis").addEventListener("calciteSwitchChange", (e) => {
+          storeLayer.visible = e.target.checked;
+        });
+
+        // --- Publish to AGOL ---
+        document.getElementById("publishBtn").addEventListener("click", async () => {
+          const user = document.getElementById("agolUser").value.trim();
+          const pass = document.getElementById("agolPass").value.trim();
+          const portal = document.getElementById("agolPortal").value.trim() || "https://www.arcgis.com";
+          const statusEl = document.getElementById("publishStatus");
+          if (!user || !pass) { statusEl.innerHTML = '<span style="color:#ff1744;">Enter username and password.</span>'; return; }
+          statusEl.innerHTML = '<calcite-loader inline scale="s"></calcite-loader> Generating token...';
+          try {
+            let resp = await fetch(`${portal}/sharing/rest/generateToken`, {
+              method: "POST", body: new URLSearchParams({ username: user, password: pass, client: "referer", referer: location.href, expiration: 60, f: "json" })
+            });
+            let tokenData = await resp.json();
+            if (!tokenData.token) throw new Error(tokenData.error?.message || "Token generation failed");
+            const tk = tokenData.token;
+            statusEl.innerHTML = '<calcite-loader inline scale="s"></calcite-loader> Uploading GeoJSON...';
+            const geojsonResp = await fetch("data/placer_visits.geojson");
+            const geojsonBlob = await geojsonResp.blob();
+            const form = new FormData();
+            form.append("f", "json"); form.append("token", tk); form.append("type", "GeoJson");
+            form.append("title", "Placer AI Foot Traffic Data - LA Metro 2025");
+            form.append("tags", "Placer AI,foot traffic,retail,Los Angeles,site intelligence");
+            form.append("snippet", "Placer AI foot traffic data for 1,156 LA metro retail locations across 24 brands");
+            form.append("file", geojsonBlob, "placer_visits.geojson");
+            resp = await fetch(`${portal}/sharing/rest/content/users/${user}/addItem`, { method: "POST", body: form });
+            let addResult = await resp.json();
+            if (!addResult.success) throw new Error(addResult.error?.message || "Upload failed");
+            statusEl.innerHTML = '<calcite-loader inline scale="s"></calcite-loader> Publishing feature service...';
+            resp = await fetch(`${portal}/sharing/rest/content/users/${user}/publish`, {
+              method: "POST", body: new URLSearchParams({
+                f: "json", token: tk, itemID: addResult.id, filetype: "geojson", outputType: "featureService",
+                publishParameters: JSON.stringify({ name: "Placer_AI_Foot_Traffic_" + Date.now(), targetSR: {wkid:102100}, maxRecordCount: 10000 })
+              })
+            });
+            let pubResult = await resp.json();
+            if (pubResult.services && pubResult.services[0]) {
+              const svc = pubResult.services[0];
+              await fetch(`${portal}/sharing/rest/content/users/${user}/items/${svc.serviceItemId}/share`, {
+                method: "POST", body: new URLSearchParams({ f: "json", token: tk, everyone: "true", org: "true" })
+              });
+              statusEl.innerHTML = `<span style="color:#00e676;">Published!</span><br><a href="${portal}/home/item.html?id=${svc.serviceItemId}" target="_blank" style="color:#7c3aed;">View in ArcGIS Online</a><br><span style="font-size:0.75em;color:#7b8a9e;">${svc.serviceurl}</span>`;
+            } else throw new Error(pubResult.error?.message || "Publish failed");
+          } catch (err) { statusEl.innerHTML = `<span style="color:#ff1744;">Error: ${err.message}</span>`; }
+        });
+
+        mapView.on("click", (event) => {
+          if (customMode) {
+            runAnalysis(event.mapPoint.latitude, event.mapPoint.longitude, "Custom Location", geometryEngine, Graphic);
+          }
+        });
+
+        // ============================================================
+        // ANALYSIS
+        // ============================================================
+        async function runAnalysis(lat, lon, label, geoEng, Gfx) {
+          const radius = parseFloat(document.getElementById("radiusSelect").value || "1");
+          document.getElementById("loadingBox").classList.remove("hidden");
+          document.getElementById("resultsBox").classList.add("hidden");
+
+          gfxLayer.removeAll();
+          const pt = new Point({ longitude: lon, latitude: lat });
+          const buffer = geoEng.geodesicBuffer(pt, radius, "miles");
+          gfxLayer.add(new Gfx({ geometry: buffer, symbol: {
+            type: "simple-fill", color: [124,58,237,0.08],
+            outline: { color: [124,58,237,0.7], width: 2, style: "dash" }
+          }}));
+          gfxLayer.add(new Gfx({ geometry: pt, symbol: {
+            type: "simple-marker", style: "x", size: 16, color: [124,58,237,1],
+            outline: { color: [255,255,255,1], width: 2 }
+          }}));
+          mapView.goTo({ target: buffer, zoom: Math.max(12, mapView.zoom) }, { duration: 800 });
+
+          const [enrichData, trafficData] = await Promise.all([
+            fetchGeoenrichment(lat, lon, radius),
+            queryPlacerInBuffer(buffer)
+          ]);
+
+          document.getElementById("loadingBox").classList.add("hidden");
+          document.getElementById("resultsBox").classList.remove("hidden");
+
+          const score = computeScore(enrichData, trafficData);
+          renderScore(score);
+          renderDemographics(enrichData, label, radius);
+          renderTraffic(trafficData);
+          renderRecommendations(score, enrichData, trafficData, label);
+        }
+
+        // --- GeoEnrichment ---
+        async function fetchGeoenrichment(lat, lon, radius) {
+          const vars = getSelectedVars();
+          if (vars.length === 0) return {};
+          if (demoMode) return generateMockData(lat, lon, radius, vars);
+          try {
+            const params = new URLSearchParams({
+              f: "json", token: apiKey,
+              studyAreas: JSON.stringify([{
+                geometry: { x: lon, y: lat, spatialReference: { wkid: 4326 } },
+                areaType: "RingBuffer", bufferUnits: "esriMiles", bufferRadii: [radius]
+              }]),
+              analysisVariables: JSON.stringify(vars)
+            });
+            const resp = await fetch(GEOENRICH_URL, { method: "POST", body: params });
+            const data = await resp.json();
+            if (data.results && data.results[0] && data.results[0].value) {
+              const fs = data.results[0].value.FeatureSet;
+              if (fs && fs[0] && fs[0].features && fs[0].features[0]) {
+                return fs[0].features[0].attributes || {};
+              }
+            }
+            return {};
+          } catch (err) { console.error("GeoEnrichment failed:", err); return {}; }
+        }
+
+        function generateMockData(lat, lon, radius, vars) {
+          const seed = Math.abs(Math.sin(lat * 1000) * 10000 + Math.cos(lon * 1000) * 10000);
+          const vary = (base, pct) => Math.round(base * (1 + (((seed * 7 + lat * 100) % 100) / 100 - 0.5) * pct));
+          const distFromDTLA = Math.sqrt(Math.pow(lat - 34.05, 2) + Math.pow(lon + 118.25, 2));
+          const urbanFactor = Math.max(0.3, 1 - distFromDTLA * 2);
+          const radiusMult = radius * radius * 0.8 + 0.2;
+          const basePop = vary(85000 * urbanFactor * radiusMult, 0.4);
+          const baseHH = Math.round(basePop / (2.2 + ((seed * 9301 + 49297) % 233280) / 233280 * 0.8));
+          const baseIncome = vary(urbanFactor > 0.6 ? 72000 : 95000, 0.35);
+          const baseAge = vary(36, 0.2);
+          const mock = {};
+          const varSet = new Set(vars.map(v => v.split(".").pop()));
+          if (varSet.has("TOTPOP_CY"))   mock.TOTPOP_CY   = Math.max(5000, basePop);
+          if (varSet.has("TOTHH_CY"))    mock.TOTHH_CY    = Math.max(2000, baseHH);
+          if (varSet.has("AVGHHSZ_CY"))  mock.AVGHHSZ_CY  = +(basePop / Math.max(1, baseHH)).toFixed(2);
+          if (varSet.has("MEDAGE_CY"))   mock.MEDAGE_CY   = Math.max(25, Math.min(55, baseAge));
+          if (varSet.has("MEDHINC_CY"))  mock.MEDHINC_CY  = Math.max(35000, baseIncome);
+          if (varSet.has("PCI_CY"))      mock.PCI_CY      = Math.round(baseIncome * 0.5);
+          if (varSet.has("AVGHINC_CY"))  mock.AVGHINC_CY  = Math.round(baseIncome * 1.25);
+          if (varSet.has("X5001_X"))     mock.X5001_X     = vary(2800, 0.4);
+          if (varSet.has("X1002_X"))     mock.X1002_X     = vary(5200, 0.3);
+          if (varSet.has("MEDVAL_CY"))   mock.MEDVAL_CY   = vary(urbanFactor > 0.5 ? 620000 : 780000, 0.35);
+          if (varSet.has("AVGVAL_CY"))   mock.AVGVAL_CY   = Math.round((mock.MEDVAL_CY || 650000) * 1.2);
+          if (varSet.has("DPOP_CY"))     mock.DPOP_CY     = Math.round(basePop * (urbanFactor > 0.6 ? 1.6 : 0.85));
+          if (varSet.has("DPOPWRK_CY"))  mock.DPOPWRK_CY  = Math.round((mock.DPOP_CY || basePop) * 0.62);
+          if (varSet.has("DPOPRES_CY"))  mock.DPOPRES_CY  = Math.round((mock.DPOP_CY || basePop) * 0.38);
+          if (varSet.has("OWNER_CY"))    mock.OWNER_CY    = Math.round(baseHH * (urbanFactor > 0.6 ? 0.35 : 0.58));
+          if (varSet.has("RENTER_CY"))   mock.RENTER_CY   = baseHH - (mock.OWNER_CY || Math.round(baseHH * 0.5));
+          if (varSet.has("DIVINDX_CY"))  mock.DIVINDX_CY  = +(55 + ((seed * 9301 + 49297) % 233280) / 233280 * 30).toFixed(1);
+          vars.forEach(v => {
+            const key = v.split(".").pop();
+            if (!(key in mock) && !["OBJECTID","sourceCountry"].includes(key)) mock[key] = vary(50000, 0.6);
+          });
+          return mock;
+        }
+
+        function getSelectedVars() {
+          let vars = [];
+          if (document.getElementById("chkDemo").checked) vars.push(...VAR_GROUPS.demo);
+          if (document.getElementById("chkIncome").checked) vars.push(...VAR_GROUPS.income);
+          if (document.getElementById("chkSpending").checked) vars.push(...VAR_GROUPS.spending);
+          if (document.getElementById("chkDaytime").checked) vars.push(...VAR_GROUPS.daytime);
+          if (document.getElementById("chkHousing").checked) vars.push(...VAR_GROUPS.housing);
+          const custom = document.getElementById("customVar").value.trim();
+          if (custom) vars.push(custom);
+          return [...new Set(vars)];
+        }
+
+        // --- Placer Query ---
+        async function queryPlacerInBuffer(bufferGeom) {
+          try {
+            await placerLayer.when();
+            const q = placerLayer.createQuery();
+            q.geometry = bufferGeom;
+            q.spatialRelationship = "intersects";
+            q.outFields = ["name","category_group","avg_weekly_foottraffic","avg_dwell_time","avg_unique_visitors","median_hhi","weekday_visits","saturday_visits","sunday_visits"];
+            q.returnGeometry = false;
+            const result = await placerLayer.queryFeatures(q);
+            const features = result.features || [];
+            let totalVisits = 0, totalDwell = 0, totalVisitors = 0, dCount = 0;
+            let brandMap = {}, catMap = {};
+            let totalWeekday = 0, totalSaturday = 0, totalSunday = 0;
+            let hhiSum = 0, hhiCount = 0;
+            features.forEach(f => {
+              const a = f.attributes;
+              const ft = a.avg_weekly_foottraffic || 0;
+              totalVisits += ft;
+              if (a.avg_dwell_time > 0) { totalDwell += a.avg_dwell_time; dCount++; }
+              totalVisitors += (a.avg_unique_visitors || 0);
+              totalWeekday += (a.weekday_visits || 0);
+              totalSaturday += (a.saturday_visits || 0);
+              totalSunday += (a.sunday_visits || 0);
+              if (a.median_hhi > 0) { hhiSum += a.median_hhi; hhiCount++; }
+              brandMap[a.name] = (brandMap[a.name] || 0) + ft;
+              catMap[a.category_group] = (catMap[a.category_group] || 0) + ft;
+            });
+            const topBrands = Object.entries(brandMap).sort((a,b) => b[1]-a[1]).slice(0, 8);
+            const avgDwell = dCount > 0 ? (totalDwell / dCount) : 0;
+            const avgHHI = hhiCount > 0 ? (hhiSum / hhiCount) : 0;
+            return { totalVisits, locationCount: features.length, topBrands, catMap, avgDwell, totalVisitors, totalWeekday, totalSaturday, totalSunday, avgHHI };
+          } catch (err) { console.error("Placer query failed:", err); return { totalVisits:0, locationCount:0, topBrands:[], catMap:{}, avgDwell:0, totalVisitors:0, totalWeekday:0, totalSaturday:0, totalSunday:0, avgHHI:0 }; }
+        }
+
+        // --- Score ---
+        function computeScore(demo, traffic) {
+          const trafficScore = Math.min(100, Math.round((traffic.totalVisits / 500000) * 100));
+          const income = demo.MEDHINC_CY || 0;
+          const affluenceScore = Math.min(100, Math.round((income / 120000) * 100));
+          const pop = demo.TOTPOP_CY || 0;
+          const marketScore = Math.min(100, Math.round((pop / 150000) * 100));
+          const dwellScore = Math.min(100, Math.round((traffic.avgDwell / 60) * 100));
+          const overall = Math.round(trafficScore * 0.30 + affluenceScore * 0.25 + marketScore * 0.25 + dwellScore * 0.20);
+          return { overall, traffic: trafficScore, affluence: affluenceScore, market: marketScore, dwell: dwellScore };
+        }
+
+        function renderScore(s) {
+          const color = s.overall >= 75 ? "#00e676" : s.overall >= 50 ? "#7c3aed" : s.overall >= 30 ? "#ffd600" : "#ff1744";
+          const dash = 283 - (283 * s.overall / 100);
+          document.getElementById("scoreContent").innerHTML = `
+            <div class="score-wrap">
+              <div class="score-circle">
+                <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="7"/>
+                <circle cx="50" cy="50" r="45" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"
+                  stroke-dasharray="283" stroke-dashoffset="${dash}" transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 1.2s ease"/></svg>
+                <div class="score-num"><div class="val" style="color:${color}">${s.overall}</div><div class="lbl">/100</div></div>
+              </div>
+              <div class="score-bars">
+                ${scoreBar("Traffic", s.traffic, "#7c3aed")}
+                ${scoreBar("Affluence", s.affluence, "#06b6d4")}
+                ${scoreBar("Market", s.market, "#f97316")}
+                ${scoreBar("Dwell", s.dwell, "#10b981")}
+              </div>
+            </div>`;
+        }
+        function scoreBar(label, val, color) {
+          return `<div class="sbar"><div class="sbar-label">${label}</div><div class="sbar-track"><div class="sbar-fill" style="width:${val}%;background:${color}"></div></div><div class="sbar-val" style="color:${color}">${val}</div></div>`;
+        }
+
+        function renderDemographics(data, label, radius) {
+          let html = `<div style="font-size:0.82em;color:#8b949e;margin-bottom:8px;">${label} &mdash; ${radius} mi radius</div>`;
+          const keys = Object.keys(data).filter(k => !["OBJECTID","ID","sourceCountry","areaType","bufferUnits","bufferRadii"].includes(k) && !k.startsWith("Has") && !k.startsWith("OBJECTID") && !k.startsWith("aggregation") && data[k] != null);
+          if (keys.length === 0) {
+            html += '<div style="color:#7b8a9e;font-size:0.85em;">No geoenrichment data returned. Check your API key privileges.</div>';
+          } else {
+            html += '<div class="stat-grid">';
+            keys.forEach(k => {
+              const shortKey = k.replace("KeyUSFacts.", "").replace("KeyGlobalFacts.", "");
+              const meta = VAR_META[shortKey] || { label: shortKey, fmt: "num" };
+              const v = data[k];
+              let display;
+              if (meta.fmt === "cur") display = "$" + Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+              else if (meta.fmt === "dec") display = Number(v).toFixed(1);
+              else display = Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+              html += `<div class="stat-card"><div class="stat-value">${display}</div><div class="stat-label">${meta.label}</div></div>`;
+            });
+            html += '</div>';
+          }
+          document.getElementById("demoContent").innerHTML = html;
+        }
+
+        function renderTraffic(t) {
+          let html = `<div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-card"><div class="stat-value">${t.totalVisits.toLocaleString()}</div><div class="stat-label">Weekly Visits</div></div>
+            <div class="stat-card"><div class="stat-value">${t.locationCount}</div><div class="stat-label">Locations</div></div>
+            <div class="stat-card"><div class="stat-value">${t.avgDwell.toFixed(0)} min</div><div class="stat-label">Avg Dwell Time</div></div>
+          </div>`;
+
+          // Visitor HHI
+          if (t.avgHHI > 0) {
+            html += `<div class="stat-grid two-col" style="margin-bottom:12px;">
+              <div class="stat-card"><div class="stat-value">${t.totalVisitors.toLocaleString()}</div><div class="stat-label">Unique Visitors</div></div>
+              <div class="stat-card"><div class="stat-value">$${Math.round(t.avgHHI).toLocaleString()}</div><div class="stat-label">Visitor Median HHI</div></div>
+            </div>`;
+          }
+
+          // Day of week pattern
+          if (t.totalWeekday > 0 || t.totalSaturday > 0 || t.totalSunday > 0) {
+            const maxDay = Math.max(t.totalWeekday, t.totalSaturday, t.totalSunday);
+            html += '<div class="section-title">Visit Pattern by Day</div>';
+            html += dayBar("Weekday (Mon)", t.totalWeekday, maxDay);
+            html += dayBar("Saturday", t.totalSaturday, maxDay);
+            html += dayBar("Sunday", t.totalSunday, maxDay);
+          }
+
+          // Top brands
+          if (t.topBrands.length > 0) {
+            const maxV = t.topBrands[0][1];
+            html += '<div class="section-title" style="margin-top:12px;">Top Brands by Traffic</div>';
+            t.topBrands.forEach(([name, visits]) => {
+              const pct = Math.round((visits / maxV) * 100);
+              html += `<div class="brand-row"><div class="brand-name">${name}</div><div class="brand-track"><div class="brand-fill" style="width:${pct}%"></div></div><div class="brand-val">${visits.toLocaleString()}</div></div>`;
+            });
+          }
+
+          // Category mix
+          const cats = Object.entries(t.catMap);
+          if (cats.length > 0) {
+            const total = cats.reduce((s, [,v]) => s + v, 0) || 1;
+            const catColors = { "Groceries": "#10b981", "Apparel": "#7c3aed", "Superstores": "#f97316", "Home Improvements & Furnishings": "#06b6d4", "Electronics": "#eab308", "Shops & Services": "#ec4899" };
+            html += '<div class="section-title" style="margin-top:12px;">Category Mix</div>';
+            cats.sort((a,b) => b[1]-a[1]).forEach(([cat, v]) => {
+              const pct = Math.round((v / total) * 100);
+              const dotColor = catColors[cat] || "#7c3aed";
+              html += `<div class="cat-row"><div><span class="cat-dot" style="background:${dotColor}"></span>${cat}</div><div style="font-weight:600;">${pct}%</div></div>`;
+            });
+          }
+
+          document.getElementById("trafficContent").innerHTML = html;
+        }
+
+        function dayBar(label, val, max) {
+          const pct = max > 0 ? Math.round((val / max) * 100) : 0;
+          return `<div class="dwell-bar"><div class="dwell-label">${label}</div><div class="dwell-track"><div class="dwell-fill" style="width:${pct}%"></div></div><div class="dwell-val">${val.toLocaleString()}</div></div>`;
+        }
+
+        function renderRecommendations(score, demo, traffic, label) {
+          const recs = [];
+          if (score.traffic >= 65) recs.push({ t: "pos", m: `Strong foot traffic zone with ${traffic.totalVisits.toLocaleString()} weekly visits nearby &mdash; high visibility and customer potential for ${label}.` });
+          else if (score.traffic >= 35) recs.push({ t: "warn", m: `Moderate traffic levels (${traffic.totalVisits.toLocaleString()} weekly visits). Consider complementary marketing to drive additional foot traffic.` });
+          else recs.push({ t: "neg", m: `Low foot traffic density in this area. This location may require significant marketing investment to attract customers.` });
+
+          const income = demo.MEDHINC_CY || 0;
+          if (income >= 80000) recs.push({ t: "pos", m: `Median household income of $${income.toLocaleString()} indicates a strong consumer spending base in this trade area.` });
+          else if (income >= 50000) recs.push({ t: "warn", m: `Moderate income area (median $${income.toLocaleString()}). Pricing strategy should emphasize value proposition.` });
+          else if (income > 0) recs.push({ t: "neg", m: `Below-target income area (median $${income.toLocaleString()}). May not align with premium retail customer profiles.` });
+
+          if (traffic.avgDwell >= 30) recs.push({ t: "pos", m: `High average dwell time of ${traffic.avgDwell.toFixed(0)} minutes indicates engaged shoppers who spend quality time at nearby stores.` });
+          else if (traffic.avgDwell >= 15) recs.push({ t: "warn", m: `Moderate dwell time (${traffic.avgDwell.toFixed(0)} min). Visitors may be doing quick errands rather than browsing.` });
+
+          if (traffic.locationCount >= 30) recs.push({ t: "pos", m: `Dense retail corridor with ${traffic.locationCount} nearby retail locations &mdash; established commercial ecosystem with high complementary traffic.` });
+
+          const pop = demo.TOTPOP_CY || 0;
+          if (pop >= 80000) recs.push({ t: "pos", m: `Large trade area population of ${pop.toLocaleString()} provides a substantial customer base.` });
+          else if (pop > 0 && pop < 30000) recs.push({ t: "warn", m: `Smaller trade area population (${pop.toLocaleString()}). Evaluate whether regional draw compensates.` });
+
+          if (traffic.avgHHI >= 100000) recs.push({ t: "pos", m: `Visitor median household income of $${Math.round(traffic.avgHHI).toLocaleString()} (from Placer AI) confirms affluent shoppers frequent this area.` });
+
+          const daytime = demo.DPOP_CY || 0;
+          if (daytime > pop * 1.2 && daytime > 0) recs.push({ t: "pos", m: `Daytime population surge (${daytime.toLocaleString()} vs ${pop.toLocaleString()} residents) indicates strong employment center with after-work shopping traffic.` });
+
+          let html = "";
+          if (recs.length === 0) html = '<div style="color:#7b8a9e;font-size:0.85em;">Run analysis to see recommendations.</div>';
+          else recs.forEach(r => { html += `<div class="rec rec-${r.t}">${r.m}</div>`; });
+
+          if (score.overall >= 70) html += `<div class="rec rec-pos" style="margin-top:8px;font-weight:600;">Overall: Strong site with a score of ${score.overall}/100 &mdash; recommended for investment.</div>`;
+          else if (score.overall >= 45) html += `<div class="rec rec-warn" style="margin-top:8px;font-weight:600;">Overall: Moderate potential (${score.overall}/100) &mdash; further due diligence recommended.</div>`;
+          else html += `<div class="rec rec-neg" style="margin-top:8px;font-weight:600;">Overall: Below threshold (${score.overall}/100) &mdash; consider alternative locations.</div>`;
+
+          document.getElementById("recsContent").innerHTML = html;
+        }
+
+      }); // end require
+    }
+  </script>
+</body>
+</html>
