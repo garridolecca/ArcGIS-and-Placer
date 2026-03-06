@@ -49,6 +49,26 @@
     .cat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 0.85em; }
     .cat-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
     calcite-shell { height: 100%; }
+    /* Login */
+    #loginScreen { position: fixed; inset: 0; background: linear-gradient(135deg, #070b1a 0%, #0f1a3a 50%, #0a1628 100%); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+    #loginScreen.hidden { opacity: 0; pointer-events: none; transition: opacity 0.6s ease; }
+    .login-inner { text-align: center; max-width: 400px; padding: 40px; }
+    .login-logo { font-size: 2.2em; font-weight: 300; color: #e0e0e0; letter-spacing: 3px; margin-bottom: 6px; }
+    .login-logo span { color: #7c3aed; font-weight: 400; }
+    .login-sub { font-size: 0.95em; color: #6b7b8d; margin-bottom: 32px; letter-spacing: 1px; }
+    .login-error { color: #ff1744; font-size: 0.82em; margin-top: 8px; min-height: 20px; }
+    .login-lock { width: 64px; height: 64px; margin: 0 auto 20px; background: rgba(124,58,237,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .login-lock svg { width: 32px; height: 32px; fill: #7c3aed; }
+    /* Guide tab */
+    .guide-section { margin-bottom: 16px; }
+    .guide-section h4 { font-size: 0.88em; color: #a78bfa; margin: 0 0 6px 0; display: flex; align-items: center; gap: 6px; }
+    .guide-section p, .guide-section li { font-size: 0.82em; color: #8b949e; line-height: 1.6; margin: 0; }
+    .guide-section ul { padding-left: 18px; margin: 4px 0 0 0; }
+    .guide-section li { margin-bottom: 4px; }
+    .guide-step { display: flex; gap: 10px; margin-bottom: 10px; }
+    .guide-step-num { width: 24px; height: 24px; border-radius: 50%; background: rgba(124,58,237,0.2); color: #a78bfa; font-size: 0.78em; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .guide-step-text { font-size: 0.82em; color: #8b949e; line-height: 1.6; }
+    .guide-tip { background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.2); border-radius: 6px; padding: 10px 12px; font-size: 0.8em; color: #a78bfa; line-height: 1.5; margin-top: 6px; }
     .dwell-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
     .dwell-label { width: 80px; font-size: 0.75em; color: #7b8a9e; }
     .dwell-track { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
@@ -57,8 +77,21 @@
   </style>
 </head>
 <body>
+  <!-- Login Screen -->
+  <div id="loginScreen">
+    <div class="login-inner">
+      <div class="login-lock"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></div>
+      <div class="login-logo">PLACER <span>x</span> RETAIL</div>
+      <div class="login-sub">Sign in to continue</div>
+      <calcite-input id="loginUser" placeholder="Username" icon="user" scale="l" style="max-width: 360px; margin: 0 auto 12px;"></calcite-input>
+      <calcite-input id="loginPass" type="password" placeholder="Password" icon="lock" scale="l" style="max-width: 360px; margin: 0 auto 16px;"></calcite-input>
+      <calcite-button id="loginBtn" scale="l" icon-start="sign-in" width="full" style="max-width: 360px;">Sign In</calcite-button>
+      <div id="loginError" class="login-error"></div>
+    </div>
+  </div>
+
   <!-- Splash Screen -->
-  <div id="splash">
+  <div id="splash" class="hidden">
     <div class="splash-inner">
       <div class="splash-logo">PLACER <span>x</span> RETAIL</div>
       <div class="splash-sub">Site Intelligence Platform &mdash; Los Angeles</div>
@@ -152,6 +185,93 @@
             <calcite-button id="publishBtn" icon-start="upload-to" width="full" appearance="outline" style="margin-top:10px;" scale="s">Publish Data to AGOL</calcite-button>
             <div id="publishStatus" style="margin-top:8px;font-size:0.8em;color:#7b8a9e;"></div>
           </calcite-block>
+          <!-- How to Use Guide -->
+          <calcite-block heading="How to Use This App" icon-start="question" collapsible>
+            <div class="guide-section">
+              <h4>Getting Started</h4>
+              <p>This platform visualizes <strong>Placer AI foot traffic data</strong> for 1,156 retail locations across 24 major brands in the Los Angeles metro area. It combines real foot traffic analytics with ArcGIS GeoEnrichment demographics to help evaluate retail site performance.</p>
+            </div>
+
+            <div class="guide-section">
+              <h4>Step-by-Step Workflow</h4>
+              <div class="guide-step">
+                <div class="guide-step-num">1</div>
+                <div class="guide-step-text"><strong>Choose your mode:</strong> On the launch screen, enter an ArcGIS API Key for live demographic data from the GeoEnrichment service, or click "Explore with Demo Data" to use simulated demographics alongside real Placer AI traffic data.</div>
+              </div>
+              <div class="guide-step">
+                <div class="guide-step-num">2</div>
+                <div class="guide-step-text"><strong>Select a retail brand:</strong> Use the "Retail Brand" dropdown to choose from 24 brands (Target, Costco, Whole Foods, Nordstrom, etc.). The map will highlight all locations for that brand with diamond markers.</div>
+              </div>
+              <div class="guide-step">
+                <div class="guide-step-num">3</div>
+                <div class="guide-step-text"><strong>Pick a store location:</strong> The "Store Location" dropdown lists all stores for the selected brand, sorted by foot traffic. Each entry shows the city, address, and average weekly visits.</div>
+              </div>
+              <div class="guide-step">
+                <div class="guide-step-num">4</div>
+                <div class="guide-step-text"><strong>Set the analysis radius:</strong> Choose 0.5, 1, 2, 3, or 5 miles. This defines the trade area buffer around the selected location.</div>
+              </div>
+              <div class="guide-step">
+                <div class="guide-step-num">5</div>
+                <div class="guide-step-text"><strong>Click "Analyze Store":</strong> The app draws a buffer on the map and runs two analyses in parallel: ArcGIS GeoEnrichment for area demographics, and a spatial query of all Placer AI locations within the buffer.</div>
+              </div>
+            </div>
+
+            <div class="guide-section">
+              <h4>Understanding the Results</h4>
+              <ul>
+                <li><strong>Site Score (0-100):</strong> A composite score based on four weighted factors: Foot Traffic (30%), Affluence (25%), Market Size (25%), and Dwell Time (20%). Scores above 70 indicate strong sites; below 45 suggest caution.</li>
+                <li><strong>Area Demographics:</strong> Population, households, median age, income, and spending data from ArcGIS GeoEnrichment (or simulated in demo mode). Toggle enrichment variable categories in the "Enrichment Variables" section.</li>
+                <li><strong>Foot Traffic Intelligence:</strong> Total weekly visits and unique visitors within the buffer, average dwell time, visitor median household income (from Placer AI), day-of-week patterns, top brands by traffic, and category mix breakdown.</li>
+                <li><strong>Strategic Insights:</strong> Automated recommendations based on traffic density, income levels, dwell time, retail density, population size, and visitor demographics.</li>
+              </ul>
+            </div>
+
+            <div class="guide-section">
+              <h4>Custom Location Analysis</h4>
+              <p>Enable the "Click map to analyze custom location" toggle to analyze any point on the map - not just existing store locations. This is useful for evaluating potential new sites or competitor locations.</p>
+            </div>
+
+            <div class="guide-section">
+              <h4>Visualization Options</h4>
+              <ul>
+                <li><strong>Heatmap View:</strong> Toggle in "Layer Controls" to switch from individual points to a density heatmap showing foot traffic concentration.</li>
+                <li><strong>Brand Highlights:</strong> Toggle to show/hide the diamond markers for the selected brand's locations.</li>
+                <li><strong>Point Symbology:</strong> Point size and color represent foot traffic volume - larger/redder points indicate higher traffic; smaller/bluer points indicate lower traffic.</li>
+              </ul>
+            </div>
+
+            <div class="guide-section">
+              <h4>Enrichment Variables</h4>
+              <p>Check or uncheck categories to control which demographic variables are fetched:</p>
+              <ul>
+                <li><strong>Demographics:</strong> Population, households, average household size, median age</li>
+                <li><strong>Income & Wealth:</strong> Median/average household income, per capita income</li>
+                <li><strong>Consumer Spending:</strong> Apparel and grocery spending indices</li>
+                <li><strong>Daytime Population:</strong> Total daytime pop, workers, and residents (useful for identifying employment centers)</li>
+                <li><strong>Housing:</strong> Owners, renters, median/average home values</li>
+                <li><strong>Custom Variable:</strong> Enter any valid ArcGIS GeoEnrichment variable ID (e.g., <code>KeyUSFacts.DIVINDX_CY</code> for Diversity Index)</li>
+              </ul>
+            </div>
+
+            <div class="guide-section">
+              <h4>Publishing to ArcGIS Online</h4>
+              <p>Use the "Publish to ArcGIS Online" section to upload the full Placer AI dataset as a hosted feature service. Enter your ArcGIS Online credentials and portal URL, then click "Publish Data to AGOL". The data will be shared publicly and can be used in other ArcGIS applications, dashboards, and Story Maps.</p>
+            </div>
+
+            <div class="guide-section">
+              <h4>Data Sources</h4>
+              <ul>
+                <li><strong>Foot Traffic:</strong> Placer AI (March 2025) - weekly visits, dwell time, unique visitors, visit frequency, visitor HHI</li>
+                <li><strong>Demographics:</strong> ArcGIS GeoEnrichment Service (Esri) or simulated demo data</li>
+                <li><strong>Basemap:</strong> ArcGIS Dark Gray Vector (API key mode) or CartoDB Dark Matter (demo mode)</li>
+              </ul>
+            </div>
+
+            <div class="guide-tip">
+              <strong>Pro Tip:</strong> Compare multiple locations by running analyses sequentially - the side panel updates with each new analysis while previous buffer outlines remain visible on the map until the next analysis clears them.
+            </div>
+          </calcite-block>
+
           <!-- Loading -->
           <div id="loadingBox" class="hidden" style="text-align:center;padding:24px;">
             <calcite-loader label="Analyzing..." type="indeterminate"></calcite-loader>
@@ -203,6 +323,27 @@
     let mapView, placerLayer, gfxLayer, storeLayer, pointRenderer;
     let apiKey = null, demoMode = false, customMode = false;
     let allFeatures = [];
+
+    // --- Login ---
+    function doLogin() {
+      const user = document.getElementById("loginUser").value.trim();
+      const pass = document.getElementById("loginPass").value.trim();
+      const errorEl = document.getElementById("loginError");
+      if (!user || !pass) {
+        errorEl.textContent = "Please enter both username and password.";
+        return;
+      }
+      if (user === "portaladmin" && pass === "placerai") {
+        errorEl.textContent = "";
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("splash").classList.remove("hidden");
+      } else {
+        errorEl.textContent = "Invalid username or password. Please try again.";
+      }
+    }
+    document.getElementById("loginBtn").addEventListener("click", doLogin);
+    document.getElementById("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+    document.getElementById("loginUser").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("loginPass").focus(); });
 
     function launch(isDemo) {
       if (!isDemo) {
