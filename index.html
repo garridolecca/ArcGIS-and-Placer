@@ -122,8 +122,100 @@
           <calcite-chip icon="pin" appearance="outline-fill" kind="neutral" scale="s">1,156 Locations</calcite-chip>
           <calcite-chip icon="walking" appearance="outline-fill" kind="brand" scale="s">17.2M Weekly Visits</calcite-chip>
           <calcite-chip icon="organization" appearance="outline-fill" kind="neutral" scale="s">24 Brands</calcite-chip>
+          <calcite-button id="guideBtn" icon-start="question" appearance="outline" kind="neutral" scale="s" round>How to Use</calcite-button>
         </div>
       </calcite-navigation>
+
+      <!-- How to Use Modal -->
+      <calcite-modal id="guideModal" width-scale="m">
+        <div slot="header">How to Use This App</div>
+        <div slot="content" style="padding: 4px 0;">
+          <div class="guide-section">
+            <h4>Getting Started</h4>
+            <p>This platform visualizes <strong>Placer AI foot traffic data</strong> for 1,156 retail locations across 24 major brands in the Los Angeles metro area. It combines real foot traffic analytics with ArcGIS GeoEnrichment demographics to help evaluate retail site performance.</p>
+          </div>
+
+          <div class="guide-section">
+            <h4>Step-by-Step Workflow</h4>
+            <div class="guide-step">
+              <div class="guide-step-num">1</div>
+              <div class="guide-step-text"><strong>Choose your mode:</strong> On the launch screen, enter an ArcGIS API Key for live demographic data from the GeoEnrichment service, or click "Explore with Demo Data" to use simulated demographics alongside real Placer AI traffic data.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">2</div>
+              <div class="guide-step-text"><strong>Select a retail brand:</strong> Use the "Retail Brand" dropdown to choose from 24 brands (Target, Costco, Whole Foods, Nordstrom, etc.). The map will highlight all locations for that brand with diamond markers.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">3</div>
+              <div class="guide-step-text"><strong>Pick a store location:</strong> The "Store Location" dropdown lists all stores for the selected brand, sorted by foot traffic. Each entry shows the city, address, and average weekly visits.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">4</div>
+              <div class="guide-step-text"><strong>Set the analysis radius:</strong> Choose 0.5, 1, 2, 3, or 5 miles. This defines the trade area buffer around the selected location.</div>
+            </div>
+            <div class="guide-step">
+              <div class="guide-step-num">5</div>
+              <div class="guide-step-text"><strong>Click "Analyze Store":</strong> The app draws a buffer on the map and runs two analyses in parallel: ArcGIS GeoEnrichment for area demographics, and a spatial query of all Placer AI locations within the buffer.</div>
+            </div>
+          </div>
+
+          <div class="guide-section">
+            <h4>Understanding the Results</h4>
+            <ul>
+              <li><strong>Site Score (0-100):</strong> A composite score based on four weighted factors: Foot Traffic (30%), Affluence (25%), Market Size (25%), and Dwell Time (20%). Scores above 70 indicate strong sites; below 45 suggest caution.</li>
+              <li><strong>Area Demographics:</strong> Population, households, median age, income, and spending data from ArcGIS GeoEnrichment (or simulated in demo mode). Toggle enrichment variable categories in the "Enrichment Variables" section.</li>
+              <li><strong>Foot Traffic Intelligence:</strong> Total weekly visits and unique visitors within the buffer, average dwell time, visitor median household income (from Placer AI), day-of-week patterns, top brands by traffic, and category mix breakdown.</li>
+              <li><strong>Strategic Insights:</strong> Automated recommendations based on traffic density, income levels, dwell time, retail density, population size, and visitor demographics.</li>
+            </ul>
+          </div>
+
+          <div class="guide-section">
+            <h4>Custom Location Analysis</h4>
+            <p>Enable the "Click map to analyze custom location" toggle to analyze any point on the map - not just existing store locations. This is useful for evaluating potential new sites or competitor locations.</p>
+          </div>
+
+          <div class="guide-section">
+            <h4>Visualization Options</h4>
+            <ul>
+              <li><strong>Heatmap View:</strong> Toggle in "Layer Controls" to switch from individual points to a density heatmap showing foot traffic concentration.</li>
+              <li><strong>Brand Highlights:</strong> Toggle to show/hide the diamond markers for the selected brand's locations.</li>
+              <li><strong>Point Symbology:</strong> Point size and color represent foot traffic volume - larger/redder points indicate higher traffic; smaller/bluer points indicate lower traffic.</li>
+            </ul>
+          </div>
+
+          <div class="guide-section">
+            <h4>Enrichment Variables</h4>
+            <p>Check or uncheck categories to control which demographic variables are fetched:</p>
+            <ul>
+              <li><strong>Demographics:</strong> Population, households, average household size, median age</li>
+              <li><strong>Income &amp; Wealth:</strong> Median/average household income, per capita income</li>
+              <li><strong>Consumer Spending:</strong> Apparel and grocery spending indices</li>
+              <li><strong>Daytime Population:</strong> Total daytime pop, workers, and residents (useful for identifying employment centers)</li>
+              <li><strong>Housing:</strong> Owners, renters, median/average home values</li>
+              <li><strong>Custom Variable:</strong> Enter any valid ArcGIS GeoEnrichment variable ID (e.g., <code>KeyUSFacts.DIVINDX_CY</code> for Diversity Index)</li>
+            </ul>
+          </div>
+
+          <div class="guide-section">
+            <h4>Publishing to ArcGIS Online</h4>
+            <p>Use the "Publish to ArcGIS Online" section to upload the full Placer AI dataset as a hosted feature service. Enter your ArcGIS Online credentials and portal URL, then click "Publish Data to AGOL". The data will be shared publicly and can be used in other ArcGIS applications, dashboards, and Story Maps.</p>
+          </div>
+
+          <div class="guide-section">
+            <h4>Data Sources</h4>
+            <ul>
+              <li><strong>Foot Traffic:</strong> Placer AI (March 2025) - weekly visits, dwell time, unique visitors, visit frequency, visitor HHI</li>
+              <li><strong>Demographics:</strong> ArcGIS GeoEnrichment Service (Esri) or simulated demo data</li>
+              <li><strong>Basemap:</strong> ArcGIS Dark Gray Vector (API key mode) or CartoDB Dark Matter (demo mode)</li>
+            </ul>
+          </div>
+
+          <div class="guide-tip">
+            <strong>Pro Tip:</strong> Compare multiple locations by running analyses sequentially - the side panel updates with each new analysis while previous buffer outlines remain visible on the map until the next analysis clears them.
+          </div>
+        </div>
+        <calcite-button slot="secondary" width="full" appearance="outline" id="guideCloseBtn">Close</calcite-button>
+      </calcite-modal>
       <div id="viewDiv"></div>
       <div id="customBanner">Click on the map to analyze any location</div>
       <calcite-shell-panel slot="panel-end" position="end" width-scale="l">
@@ -185,93 +277,6 @@
             <calcite-button id="publishBtn" icon-start="upload-to" width="full" appearance="outline" style="margin-top:10px;" scale="s">Publish Data to AGOL</calcite-button>
             <div id="publishStatus" style="margin-top:8px;font-size:0.8em;color:#7b8a9e;"></div>
           </calcite-block>
-          <!-- How to Use Guide -->
-          <calcite-block heading="How to Use This App" icon-start="question" collapsible>
-            <div class="guide-section">
-              <h4>Getting Started</h4>
-              <p>This platform visualizes <strong>Placer AI foot traffic data</strong> for 1,156 retail locations across 24 major brands in the Los Angeles metro area. It combines real foot traffic analytics with ArcGIS GeoEnrichment demographics to help evaluate retail site performance.</p>
-            </div>
-
-            <div class="guide-section">
-              <h4>Step-by-Step Workflow</h4>
-              <div class="guide-step">
-                <div class="guide-step-num">1</div>
-                <div class="guide-step-text"><strong>Choose your mode:</strong> On the launch screen, enter an ArcGIS API Key for live demographic data from the GeoEnrichment service, or click "Explore with Demo Data" to use simulated demographics alongside real Placer AI traffic data.</div>
-              </div>
-              <div class="guide-step">
-                <div class="guide-step-num">2</div>
-                <div class="guide-step-text"><strong>Select a retail brand:</strong> Use the "Retail Brand" dropdown to choose from 24 brands (Target, Costco, Whole Foods, Nordstrom, etc.). The map will highlight all locations for that brand with diamond markers.</div>
-              </div>
-              <div class="guide-step">
-                <div class="guide-step-num">3</div>
-                <div class="guide-step-text"><strong>Pick a store location:</strong> The "Store Location" dropdown lists all stores for the selected brand, sorted by foot traffic. Each entry shows the city, address, and average weekly visits.</div>
-              </div>
-              <div class="guide-step">
-                <div class="guide-step-num">4</div>
-                <div class="guide-step-text"><strong>Set the analysis radius:</strong> Choose 0.5, 1, 2, 3, or 5 miles. This defines the trade area buffer around the selected location.</div>
-              </div>
-              <div class="guide-step">
-                <div class="guide-step-num">5</div>
-                <div class="guide-step-text"><strong>Click "Analyze Store":</strong> The app draws a buffer on the map and runs two analyses in parallel: ArcGIS GeoEnrichment for area demographics, and a spatial query of all Placer AI locations within the buffer.</div>
-              </div>
-            </div>
-
-            <div class="guide-section">
-              <h4>Understanding the Results</h4>
-              <ul>
-                <li><strong>Site Score (0-100):</strong> A composite score based on four weighted factors: Foot Traffic (30%), Affluence (25%), Market Size (25%), and Dwell Time (20%). Scores above 70 indicate strong sites; below 45 suggest caution.</li>
-                <li><strong>Area Demographics:</strong> Population, households, median age, income, and spending data from ArcGIS GeoEnrichment (or simulated in demo mode). Toggle enrichment variable categories in the "Enrichment Variables" section.</li>
-                <li><strong>Foot Traffic Intelligence:</strong> Total weekly visits and unique visitors within the buffer, average dwell time, visitor median household income (from Placer AI), day-of-week patterns, top brands by traffic, and category mix breakdown.</li>
-                <li><strong>Strategic Insights:</strong> Automated recommendations based on traffic density, income levels, dwell time, retail density, population size, and visitor demographics.</li>
-              </ul>
-            </div>
-
-            <div class="guide-section">
-              <h4>Custom Location Analysis</h4>
-              <p>Enable the "Click map to analyze custom location" toggle to analyze any point on the map - not just existing store locations. This is useful for evaluating potential new sites or competitor locations.</p>
-            </div>
-
-            <div class="guide-section">
-              <h4>Visualization Options</h4>
-              <ul>
-                <li><strong>Heatmap View:</strong> Toggle in "Layer Controls" to switch from individual points to a density heatmap showing foot traffic concentration.</li>
-                <li><strong>Brand Highlights:</strong> Toggle to show/hide the diamond markers for the selected brand's locations.</li>
-                <li><strong>Point Symbology:</strong> Point size and color represent foot traffic volume - larger/redder points indicate higher traffic; smaller/bluer points indicate lower traffic.</li>
-              </ul>
-            </div>
-
-            <div class="guide-section">
-              <h4>Enrichment Variables</h4>
-              <p>Check or uncheck categories to control which demographic variables are fetched:</p>
-              <ul>
-                <li><strong>Demographics:</strong> Population, households, average household size, median age</li>
-                <li><strong>Income & Wealth:</strong> Median/average household income, per capita income</li>
-                <li><strong>Consumer Spending:</strong> Apparel and grocery spending indices</li>
-                <li><strong>Daytime Population:</strong> Total daytime pop, workers, and residents (useful for identifying employment centers)</li>
-                <li><strong>Housing:</strong> Owners, renters, median/average home values</li>
-                <li><strong>Custom Variable:</strong> Enter any valid ArcGIS GeoEnrichment variable ID (e.g., <code>KeyUSFacts.DIVINDX_CY</code> for Diversity Index)</li>
-              </ul>
-            </div>
-
-            <div class="guide-section">
-              <h4>Publishing to ArcGIS Online</h4>
-              <p>Use the "Publish to ArcGIS Online" section to upload the full Placer AI dataset as a hosted feature service. Enter your ArcGIS Online credentials and portal URL, then click "Publish Data to AGOL". The data will be shared publicly and can be used in other ArcGIS applications, dashboards, and Story Maps.</p>
-            </div>
-
-            <div class="guide-section">
-              <h4>Data Sources</h4>
-              <ul>
-                <li><strong>Foot Traffic:</strong> Placer AI (March 2025) - weekly visits, dwell time, unique visitors, visit frequency, visitor HHI</li>
-                <li><strong>Demographics:</strong> ArcGIS GeoEnrichment Service (Esri) or simulated demo data</li>
-                <li><strong>Basemap:</strong> ArcGIS Dark Gray Vector (API key mode) or CartoDB Dark Matter (demo mode)</li>
-              </ul>
-            </div>
-
-            <div class="guide-tip">
-              <strong>Pro Tip:</strong> Compare multiple locations by running analyses sequentially - the side panel updates with each new analysis while previous buffer outlines remain visible on the map until the next analysis clears them.
-            </div>
-          </calcite-block>
-
           <!-- Loading -->
           <div id="loadingBox" class="hidden" style="text-align:center;padding:24px;">
             <calcite-loader label="Analyzing..." type="indeterminate"></calcite-loader>
@@ -341,6 +346,8 @@
         errorEl.textContent = "Invalid username or password. Please try again.";
       }
     }
+    document.getElementById("guideBtn").addEventListener("click", () => { document.getElementById("guideModal").open = true; });
+    document.getElementById("guideCloseBtn").addEventListener("click", () => { document.getElementById("guideModal").open = false; });
     document.getElementById("loginBtn").addEventListener("click", doLogin);
     document.getElementById("loginPass").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
     document.getElementById("loginUser").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("loginPass").focus(); });
