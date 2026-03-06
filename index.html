@@ -359,7 +359,7 @@
             opt.textContent = `${f.attributes.city} - ${f.attributes.address} (${f.attributes.avg_weekly_foottraffic.toLocaleString()} visits/wk)`;
             opt.dataset.lat = f.geometry.latitude;
             opt.dataset.lng = f.geometry.longitude;
-            sel.appendChild(opt);
+            storeSel.appendChild(opt);
           });
 
           // Update store highlight layer
