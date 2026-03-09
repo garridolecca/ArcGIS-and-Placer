@@ -751,15 +751,11 @@
           placerLayer.opacity = 0.08;
           storeLayer.visible = false;
 
-          // Check if this POI has trade area data — if so, skip the radius circle
-          const hasTAData = storeAttrs && storeAttrs.placer_id && tradeAreaAvailable && tradeAreaIndex && tradeAreaIndex[storeAttrs.placer_id];
-          if (!hasTAData) {
-            // Only show radius buffer when no trade area data available
-            gfxLayer.add(new Gfx({ geometry: buffer, symbol: {
-              type: "simple-fill", color: [124,58,237,0.08],
-              outline: { color: [124,58,237,0.7], width: 2, style: "dash" }
-            }}));
-          }
+          // Always show the radius buffer
+          gfxLayer.add(new Gfx({ geometry: buffer, symbol: {
+            type: "simple-fill", color: [124,58,237,0.08],
+            outline: { color: [124,58,237,0.7], width: 2, style: "dash" }
+          }}));
           // Always show the store pin
           gfxLayer.add(new Gfx({ geometry: pt, symbol: {
             type: "simple-marker", style: "diamond", size: 18, color: [124,58,237,1],
