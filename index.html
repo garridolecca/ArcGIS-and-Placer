@@ -74,6 +74,28 @@
     .dwell-track { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
     .dwell-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #06b6d4, #22d3ee); }
     .dwell-val { width: 50px; text-align: right; font-size: 0.75em; color: #7b8a9e; }
+    /* Trade Area / Catchment */
+    .trade-area-legend { display: flex; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+    .trade-ring-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72em; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .trade-ring-badge.primary { background: rgba(124,58,237,0.2); color: #a78bfa; border: 1px solid rgba(124,58,237,0.4); }
+    .trade-ring-badge.secondary { background: rgba(6,182,212,0.15); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); }
+    .trade-ring-badge.tertiary { background: rgba(249,115,22,0.12); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
+    .cbg-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .cbg-fips { width: 95px; font-size: 0.7em; color: #7b8a9e; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cbg-track { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .cbg-fill { height: 100%; border-radius: 3px; }
+    .cbg-val { width: 55px; text-align: right; font-size: 0.72em; color: #7b8a9e; }
+    .dist-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .dist-label { width: 70px; font-size: 0.72em; color: #7b8a9e; text-align: right; }
+    .dist-track { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .dist-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+    .dist-val { width: 55px; text-align: right; font-size: 0.72em; color: #7b8a9e; }
+    .ta-view-toggle { display: flex; gap: 4px; margin: 6px 0; }
+    .ta-view-toggle button { flex: 1; padding: 4px 8px; font-size: 0.72em; border: 1px solid rgba(124,58,237,0.3); background: transparent; color: #7b8a9e; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+    .ta-view-toggle button.active { background: rgba(124,58,237,0.2); color: #a78bfa; border-color: rgba(124,58,237,0.6); }
+    .ta-concentration { background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.2); border-radius: 6px; padding: 8px 12px; margin: 8px 0; text-align: center; }
+    .ta-concentration .val { font-size: 1.4em; font-weight: 700; color: #a78bfa; }
+    .ta-concentration .lbl { font-size: 0.72em; color: #7b8a9e; }
   </style>
 </head>
 <body>
@@ -261,6 +283,7 @@
           <calcite-block heading="Layer Controls" icon-start="layers" collapsible>
             <calcite-label layout="inline"><calcite-switch id="heatSwitch"></calcite-switch>Heatmap View</calcite-label>
             <calcite-label layout="inline"><calcite-switch id="storeVis" checked></calcite-switch>Selected Brand Highlights</calcite-label>
+            <calcite-label layout="inline"><calcite-switch id="tradeAreaSwitch"></calcite-switch>Trade Area (CBG Catchment)</calcite-label>
           </calcite-block>
           <!-- Publish to AGOL -->
           <calcite-block heading="Publish to ArcGIS Online" icon-start="upload-to" collapsible>
@@ -287,6 +310,7 @@
             <calcite-block heading="Site Score" icon-start="gauge" open collapsible><div id="scoreContent"></div></calcite-block>
             <calcite-block heading="Area Demographics" icon-start="group" open collapsible><div id="demoContent"></div></calcite-block>
             <calcite-block heading="Foot Traffic Intelligence" icon-start="walking" open collapsible><div id="trafficContent"></div></calcite-block>
+            <calcite-block heading="Trade Area / Catchment" icon-start="urban-model" open collapsible><div id="tradeAreaContent"><div style="color:#7b8a9e;font-size:0.85em;">Select and analyze a store to see its trade area.</div></div></calcite-block>
             <calcite-block heading="Strategic Insights" icon-start="lightbulb" open collapsible><div id="recsContent"></div></calcite-block>
           </div>
         </calcite-panel>
@@ -325,9 +349,11 @@
       DIVINDX_CY: { label: "Diversity Idx", fmt: "dec" }
     };
 
-    let mapView, placerLayer, gfxLayer, storeLayer, pointRenderer;
+    let mapView, placerLayer, gfxLayer, storeLayer, pointRenderer, tradeAreaLayer;
     let apiKey = null, demoMode = false, customMode = false;
     let allFeatures = [];
+    let tradeAreaAvailable = false;
+    let currentTAView = "rings";
 
     // --- Login ---
     function doLogin() {
@@ -401,6 +427,58 @@
 
         gfxLayer = new GraphicsLayer({ title: "Analysis Area", listMode: "hide" });
         map.add(gfxLayer);
+
+        // --- Trade Area Layer (CBG polygons) ---
+        const tradeAreaRingRenderer = {
+          type: "unique-value",
+          field: "trade_area_ring",
+          defaultSymbol: { type: "simple-fill", color: [100,100,100,0.1], outline: { color: [100,100,100,0.3], width: 0.5 } },
+          uniqueValueInfos: [
+            { value: "primary", symbol: { type: "simple-fill", color: [124,58,237,0.35], outline: { color: [124,58,237,0.8], width: 1 } }, label: "Primary (0-60%)" },
+            { value: "secondary", symbol: { type: "simple-fill", color: [6,182,212,0.25], outline: { color: [6,182,212,0.7], width: 0.8 } }, label: "Secondary (60-80%)" },
+            { value: "tertiary", symbol: { type: "simple-fill", color: [249,115,22,0.15], outline: { color: [249,115,22,0.5], width: 0.5 } }, label: "Tertiary (80-95%)" }
+          ]
+        };
+        const tradeAreaChoroplethRenderer = {
+          type: "simple",
+          symbol: { type: "simple-fill", outline: { color: [255,255,255,0.3], width: 0.5 } },
+          visualVariables: [{
+            type: "color", field: "visits",
+            stops: [
+              { value: 10, color: "#1a1a2e" },
+              { value: 100, color: "#3b0764" },
+              { value: 500, color: "#7c3aed" },
+              { value: 2000, color: "#c084fc" },
+              { value: 5000, color: "#f97316" },
+              { value: 15000, color: "#ef4444" }
+            ]
+          }]
+        };
+        try {
+          tradeAreaLayer = new GeoJSONLayer({
+            url: "data/placer_trade_areas.geojson",
+            title: "Visitor Trade Areas (CBG)",
+            visible: false,
+            renderer: tradeAreaRingRenderer,
+            definitionExpression: "1=0",
+            popupTemplate: {
+              title: "CBG: {cbg_fips}",
+              content: [{ type: "fields", fieldInfos: [
+                { fieldName: "poi_name", label: "Store" },
+                { fieldName: "visits", label: "Visits from CBG", format: { digitSeparator: true, places: 0 } },
+                { fieldName: "visit_pct", label: "% of Total Visits", format: { places: 2 } },
+                { fieldName: "trade_area_ring", label: "Trade Area Ring" },
+                { fieldName: "population", label: "CBG Land Area (sqm)", format: { digitSeparator: true, places: 0 } }
+              ]}]
+            }
+          });
+          map.add(tradeAreaLayer, 0);
+          tradeAreaLayer.when(() => { tradeAreaAvailable = true; })
+            .catch(() => { tradeAreaAvailable = false; console.log("Trade area data not available."); });
+        } catch (e) {
+          tradeAreaAvailable = false;
+          console.log("Trade area layer could not be created:", e);
+        }
 
         // --- Placer AI Layer ---
         const renderer = {
@@ -532,7 +610,7 @@
           const store = stores[storeIdx];
           if (store) {
             runAnalysis(store.geometry.latitude, store.geometry.longitude,
-              `${brand} - ${store.attributes.city}`, geometryEngine, Graphic);
+              `${brand} - ${store.attributes.city}`, geometryEngine, Graphic, store.attributes);
           }
         });
 
@@ -566,6 +644,19 @@
         document.getElementById("storeVis").addEventListener("calciteSwitchChange", (e) => {
           storeLayer.visible = e.target.checked;
         });
+
+        document.getElementById("tradeAreaSwitch").addEventListener("calciteSwitchChange", (e) => {
+          if (tradeAreaLayer) tradeAreaLayer.visible = e.target.checked;
+        });
+
+        window.__setTAView = function(view) {
+          currentTAView = view;
+          if (!tradeAreaLayer) return;
+          tradeAreaLayer.renderer = view === "density" ? tradeAreaChoroplethRenderer : tradeAreaRingRenderer;
+          document.querySelectorAll(".ta-view-toggle button").forEach(b => {
+            b.classList.toggle("active", b.dataset.view === view);
+          });
+        };
 
         // --- Publish to AGOL ---
         document.getElementById("publishBtn").addEventListener("click", async () => {
@@ -614,14 +705,14 @@
 
         mapView.on("click", (event) => {
           if (customMode) {
-            runAnalysis(event.mapPoint.latitude, event.mapPoint.longitude, "Custom Location", geometryEngine, Graphic);
+            runAnalysis(event.mapPoint.latitude, event.mapPoint.longitude, "Custom Location", geometryEngine, Graphic, null);
           }
         });
 
         // ============================================================
         // ANALYSIS
         // ============================================================
-        async function runAnalysis(lat, lon, label, geoEng, Gfx) {
+        async function runAnalysis(lat, lon, label, geoEng, Gfx, storeAttrs) {
           const radius = parseFloat(document.getElementById("radiusSelect").value || "1");
           document.getElementById("loadingBox").classList.remove("hidden");
           document.getElementById("resultsBox").classList.add("hidden");
@@ -652,6 +743,35 @@
           renderDemographics(enrichData, label, radius);
           renderTraffic(trafficData);
           renderRecommendations(score, enrichData, trafficData, label);
+
+          // --- Trade Area + Distance Bands ---
+          renderDistanceBands(storeAttrs);
+          if (storeAttrs && storeAttrs.placer_id && tradeAreaAvailable && tradeAreaLayer) {
+            const placerId = storeAttrs.placer_id;
+            tradeAreaLayer.definitionExpression = `poi_id = '${placerId}'`;
+            tradeAreaLayer.visible = true;
+            document.getElementById("tradeAreaSwitch").checked = true;
+            tradeAreaLayer.renderer = currentTAView === "density" ? tradeAreaChoroplethRenderer : tradeAreaRingRenderer;
+            try {
+              const taQuery = tradeAreaLayer.createQuery();
+              taQuery.where = `poi_id = '${placerId}'`;
+              taQuery.outFields = ["*"];
+              taQuery.returnGeometry = false;
+              const taResult = await tradeAreaLayer.queryFeatures(taQuery);
+              renderTradeAreaPanel(taResult.features || [], label);
+            } catch (e) {
+              console.log("Trade area query failed:", e);
+              renderTradeAreaPanel([], label);
+            }
+          } else {
+            if (!storeAttrs) {
+              document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Trade area data is only available for Placer AI store locations. Select a store from the dropdown to see catchment areas.</div>';
+            } else if (!tradeAreaAvailable) {
+              document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Trade area data not available. Run <code>aggregate_data.py</code> with the Origins feed to generate <code>placer_trade_areas.geojson</code>.</div>';
+            } else {
+              renderTradeAreaPanel([], label);
+            }
+          }
         }
 
         // --- GeoEnrichment ---
@@ -910,6 +1030,122 @@
 
           document.getElementById("recsContent").innerHTML = html;
         }
+
+        // --- Render Trade Area Panel ---
+        function renderTradeAreaPanel(features, label) {
+          const el = document.getElementById("tradeAreaContent");
+          if (!features || features.length === 0) {
+            el.innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">No trade area CBG data found for this location.</div>';
+            return;
+          }
+
+          const primary = features.filter(f => f.attributes.trade_area_ring === "primary");
+          const secondary = features.filter(f => f.attributes.trade_area_ring === "secondary");
+          const tertiary = features.filter(f => f.attributes.trade_area_ring === "tertiary");
+          const totalVisits = features.reduce((s, f) => s + (f.attributes.visits || 0), 0);
+          const primaryVisits = primary.reduce((s, f) => s + (f.attributes.visits || 0), 0);
+          const concentration = totalVisits > 0 ? Math.round((primaryVisits / totalVisits) * 100) : 0;
+
+          let html = '';
+
+          // View toggle
+          html += `<div class="ta-view-toggle">
+            <button data-view="rings" class="${currentTAView === 'rings' ? 'active' : ''}" onclick="window.__setTAView('rings')">Ring View</button>
+            <button data-view="density" class="${currentTAView === 'density' ? 'active' : ''}" onclick="window.__setTAView('density')">Visit Density</button>
+          </div>`;
+
+          // Summary stats
+          html += `<div class="stat-grid" style="margin-bottom:10px;">
+            <div class="stat-card"><div class="stat-value">${features.length}</div><div class="stat-label">CBGs</div></div>
+            <div class="stat-card"><div class="stat-value">${totalVisits.toLocaleString()}</div><div class="stat-label">Total Visits</div></div>
+            <div class="stat-card"><div class="stat-value">${concentration}%</div><div class="stat-label">Primary Conc.</div></div>
+          </div>`;
+
+          // Legend
+          html += `<div class="trade-area-legend">
+            <span class="trade-ring-badge primary">Primary ${primary.length} CBGs</span>
+            <span class="trade-ring-badge secondary">Secondary ${secondary.length} CBGs</span>
+            <span class="trade-ring-badge tertiary">Tertiary ${tertiary.length} CBGs</span>
+          </div>`;
+
+          // Concentration insight
+          if (concentration >= 60) {
+            html += `<div class="ta-concentration"><div class="val">${concentration}%</div><div class="lbl">of visitors come from the primary trade area — highly concentrated catchment</div></div>`;
+          } else if (concentration >= 40) {
+            html += `<div class="ta-concentration"><div class="val">${concentration}%</div><div class="lbl">of visitors from primary area — moderately dispersed catchment</div></div>`;
+          } else {
+            html += `<div class="ta-concentration"><div class="val">${concentration}%</div><div class="lbl">of visitors from primary area — widely dispersed visitor base</div></div>`;
+          }
+
+          // Top CBGs
+          const sorted = [...features].sort((a, b) => (b.attributes.visits || 0) - (a.attributes.visits || 0));
+          const top10 = sorted.slice(0, 10);
+          const maxVisits = top10.length > 0 ? top10[0].attributes.visits : 1;
+          html += '<div class="section-title" style="margin-top:10px;">Top CBGs by Visit Volume</div>';
+          top10.forEach(f => {
+            const a = f.attributes;
+            const pct = Math.round((a.visits / maxVisits) * 100);
+            const ring = a.trade_area_ring || "tertiary";
+            const ringColors = { primary: "#7c3aed", secondary: "#06b6d4", tertiary: "#f97316" };
+            const color = ringColors[ring] || "#7c3aed";
+            html += `<div class="cbg-row">
+              <div class="cbg-fips">${a.cbg_fips}</div>
+              <div class="cbg-track"><div class="cbg-fill" style="width:${pct}%;background:${color}"></div></div>
+              <div class="cbg-val">${a.visits.toLocaleString()} <span style="font-size:0.85em;color:${color}">${(a.visit_pct * 100).toFixed(1)}%</span></div>
+            </div>`;
+          });
+
+          el.innerHTML = html;
+        }
+
+        // --- Render Distance Bands ---
+        function renderDistanceBands(attrs) {
+          if (!attrs) return;
+          const bands = [
+            { key: "dist_band_lt_0_3_mi", label: "<0.3 mi" },
+            { key: "dist_band_0_3_1_mi", label: "0.3-1 mi" },
+            { key: "dist_band_1_2_mi", label: "1-2 mi" },
+            { key: "dist_band_2_3_mi", label: "2-3 mi" },
+            { key: "dist_band_3_5_mi", label: "3-5 mi" },
+            { key: "dist_band_5_7_mi", label: "5-7 mi" },
+            { key: "dist_band_7_10_mi", label: "7-10 mi" },
+            { key: "dist_band_10_15_mi", label: "10-15 mi" },
+            { key: "dist_band_15_25_mi", label: "15-25 mi" },
+            { key: "dist_band_25_50_mi", label: "25-50 mi" },
+            { key: "dist_band_50_100_mi", label: "50-100 mi" },
+            { key: "dist_band_100_150_mi", label: "100-150 mi" },
+            { key: "dist_band_150_250_mi", label: "150-250 mi" },
+            { key: "dist_band_250_plus_mi", label: "250+ mi" }
+          ];
+          // Check if any distance band data exists
+          const hasData = bands.some(b => (attrs[b.key] || 0) > 0);
+          if (!hasData) return;
+
+          const maxVal = Math.max(...bands.map(b => attrs[b.key] || 0), 1);
+          let html = '<div class="section-title" style="margin-top:14px;">Visitor Distance Distribution</div>';
+          bands.forEach(b => {
+            const val = attrs[b.key] || 0;
+            if (val <= 0) return;
+            const pct = Math.round((val / maxVal) * 100);
+            html += `<div class="dist-bar">
+              <div class="dist-label">${b.label}</div>
+              <div class="dist-track"><div class="dist-fill" style="width:${pct}%"></div></div>
+              <div class="dist-val">${val.toLocaleString()}</div>
+            </div>`;
+          });
+          // Append to traffic content
+          document.getElementById("trafficContent").innerHTML += html;
+        }
+
+        // --- Clear trade area on brand change ---
+        document.getElementById("brandSelect").addEventListener("calciteSelectChange", () => {
+          if (tradeAreaLayer) {
+            tradeAreaLayer.definitionExpression = "1=0";
+            tradeAreaLayer.visible = false;
+            document.getElementById("tradeAreaSwitch").checked = false;
+          }
+          document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Select and analyze a store to see its trade area.</div>';
+        });
 
       }); // end require
     }
