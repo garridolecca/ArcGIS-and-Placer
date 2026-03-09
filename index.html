@@ -538,6 +538,12 @@
         map.add(placerLayer);
         pointRenderer = renderer;
 
+        // Faded renderer for when a store is being analyzed
+        const fadedRenderer = {
+          type: "simple",
+          symbol: { type: "simple-marker", style: "circle", size: 3, color: [167,139,250,0.12], outline: { color: [124,58,237,0.08], width: 0.3 } }
+        };
+
         // --- Store highlight layer (populated when brand selected) ---
         storeLayer = new FeatureLayer({
           source: [], objectIdField: "ObjectID",
@@ -744,6 +750,13 @@
           gfxLayer.removeAll();
           const pt = new Point({ longitude: lon, latitude: lat });
           const buffer = geoEng.geodesicBuffer(pt, radius, "miles");
+
+          // Fade all other locations so the trade area stands out
+          if (!document.getElementById("heatSwitch").checked) {
+            placerLayer.renderer = fadedRenderer;
+          }
+          storeLayer.visible = false;
+
           // Check if this POI has trade area data — if so, skip the radius circle
           const hasTAData = storeAttrs && storeAttrs.placer_id && tradeAreaAvailable && tradeAreaData && tradeAreaData[storeAttrs.placer_id];
           if (!hasTAData) {
@@ -1224,8 +1237,15 @@
           document.getElementById("trafficContent").innerHTML += html;
         }
 
-        // --- Clear trade area on brand change ---
+        // --- Clear trade area and restore renderers on brand change ---
         document.getElementById("brandSelect").addEventListener("calciteSelectChange", () => {
+          // Restore full-opacity renderers
+          if (!document.getElementById("heatSwitch").checked) {
+            placerLayer.renderer = pointRenderer;
+          }
+          storeLayer.visible = document.getElementById("storeVis").checked;
+          gfxLayer.removeAll();
+
           if (tradeAreaLayer) {
             tradeAreaLayer.queryFeatures().then(r => {
               if (r.features.length) tradeAreaLayer.applyEdits({ deleteFeatures: r.features });
