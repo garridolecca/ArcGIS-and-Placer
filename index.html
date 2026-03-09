@@ -310,7 +310,7 @@
             <calcite-block heading="Site Score" icon-start="gauge" open collapsible><div id="scoreContent"></div></calcite-block>
             <calcite-block heading="Area Demographics" icon-start="group" open collapsible><div id="demoContent"></div></calcite-block>
             <calcite-block heading="Foot Traffic Intelligence" icon-start="walking" open collapsible><div id="trafficContent"></div></calcite-block>
-            <calcite-block heading="Trade Area / Catchment" icon-start="urban-model" open collapsible><div id="tradeAreaContent"><div style="color:#7b8a9e;font-size:0.85em;">Select and analyze a store to see its trade area.</div></div></calcite-block>
+            <calcite-block heading="Visitor Origins (Trade Area)" icon-start="urban-model" open collapsible><div id="tradeAreaContent"><div style="color:#7b8a9e;font-size:0.85em;">Select and analyze a store to see where its visitors come from.</div></div></calcite-block>
             <calcite-block heading="Strategic Insights" icon-start="lightbulb" open collapsible><div id="recsContent"></div></calcite-block>
           </div>
         </calcite-panel>
@@ -744,13 +744,19 @@
           gfxLayer.removeAll();
           const pt = new Point({ longitude: lon, latitude: lat });
           const buffer = geoEng.geodesicBuffer(pt, radius, "miles");
-          gfxLayer.add(new Gfx({ geometry: buffer, symbol: {
-            type: "simple-fill", color: [124,58,237,0.08],
-            outline: { color: [124,58,237,0.7], width: 2, style: "dash" }
-          }}));
+          // Check if this POI has trade area data — if so, skip the radius circle
+          const hasTAData = storeAttrs && storeAttrs.placer_id && tradeAreaAvailable && tradeAreaData && tradeAreaData[storeAttrs.placer_id];
+          if (!hasTAData) {
+            // Only show radius buffer when no trade area data available
+            gfxLayer.add(new Gfx({ geometry: buffer, symbol: {
+              type: "simple-fill", color: [124,58,237,0.08],
+              outline: { color: [124,58,237,0.7], width: 2, style: "dash" }
+            }}));
+          }
+          // Always show the store pin
           gfxLayer.add(new Gfx({ geometry: pt, symbol: {
-            type: "simple-marker", style: "x", size: 16, color: [124,58,237,1],
-            outline: { color: [255,255,255,1], width: 2 }
+            type: "simple-marker", style: "diamond", size: 18, color: [124,58,237,1],
+            outline: { color: [255,255,255,1], width: 2.5 }
           }}));
           mapView.goTo({ target: buffer, zoom: Math.max(12, mapView.zoom) }, { duration: 800 });
 
@@ -1091,6 +1097,13 @@
             tradeAreaLayer.visible = true;
             document.getElementById("tradeAreaSwitch").checked = true;
             tradeAreaLayer.renderer = currentTAView === "density" ? tradeAreaChoroplethRenderer : tradeAreaRingRenderer;
+            // Zoom to show the full trade area extent
+            try {
+              const extent = await tradeAreaLayer.queryExtent();
+              if (extent && extent.extent) {
+                mapView.goTo(extent.extent.expand(1.2), { duration: 1000 });
+              }
+            } catch (e) { /* keep current view */ }
           }
 
           // Render panel using the raw GeoJSON feature properties
@@ -1115,6 +1128,12 @@
           const concentration = totalVisits > 0 ? Math.round((primaryVisits / totalVisits) * 100) : 0;
 
           let html = '';
+
+          // Explanation
+          html += `<div style="font-size:0.78em;color:#8b949e;margin-bottom:10px;line-height:1.5;">
+            Each polygon is a <strong style="color:#a78bfa;">Census Block Group</strong> where visitors to this store live.
+            The color indicates how much of the store's total traffic originates from that area.
+          </div>`;
 
           // View toggle
           html += `<div class="ta-view-toggle">
@@ -1214,7 +1233,7 @@
             tradeAreaLayer.visible = false;
             document.getElementById("tradeAreaSwitch").checked = false;
           }
-          document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Select and analyze a store to see its trade area.</div>';
+          document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Select and analyze a store to see where its visitors come from.</div>';
         });
 
       }); // end require
