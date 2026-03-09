@@ -353,6 +353,7 @@
     let apiKey = null, demoMode = false, customMode = false;
     let allFeatures = [];
     let tradeAreaAvailable = false;
+    let tradeAreaData = null; // raw GeoJSON keyed by poi_id
     let currentTAView = "rings";
 
     // --- Login ---
@@ -402,10 +403,10 @@
       require([
         "esri/Map","esri/views/MapView","esri/layers/GeoJSONLayer",
         "esri/layers/GraphicsLayer","esri/layers/FeatureLayer","esri/Graphic",
-        "esri/geometry/Point","esri/geometry/geometryEngine",
+        "esri/geometry/Point","esri/geometry/Polygon","esri/geometry/geometryEngine",
         "esri/layers/WebTileLayer","esri/Basemap",
         "esri/widgets/Legend","esri/widgets/Home","esri/widgets/Expand","esri/config"
-      ], function(Map, MapView, GeoJSONLayer, GraphicsLayer, FeatureLayer, Graphic, Point, geometryEngine, WebTileLayer, Basemap, Legend, Home, Expand, esriConfig) {
+      ], function(Map, MapView, GeoJSONLayer, GraphicsLayer, FeatureLayer, Graphic, Point, Polygon, geometryEngine, WebTileLayer, Basemap, Legend, Home, Expand, esriConfig) {
 
         if (apiKey) esriConfig.apiKey = apiKey;
 
@@ -428,7 +429,7 @@
         gfxLayer = new GraphicsLayer({ title: "Analysis Area", listMode: "hide" });
         map.add(gfxLayer);
 
-        // --- Trade Area Layer (CBG polygons) ---
+        // --- Trade Area Layer (CBG polygons, client-side FeatureLayer) ---
         const tradeAreaRingRenderer = {
           type: "unique-value",
           field: "trade_area_ring",
@@ -454,31 +455,54 @@
             ]
           }]
         };
-        try {
-          tradeAreaLayer = new GeoJSONLayer({
-            url: "data/placer_trade_areas.geojson",
-            title: "Visitor Trade Areas (CBG)",
-            visible: false,
-            renderer: tradeAreaRingRenderer,
-            definitionExpression: "1=0",
-            popupTemplate: {
-              title: "CBG: {cbg_fips}",
-              content: [{ type: "fields", fieldInfos: [
-                { fieldName: "poi_name", label: "Store" },
-                { fieldName: "visits", label: "Visits from CBG", format: { digitSeparator: true, places: 0 } },
-                { fieldName: "visit_pct", label: "% of Total Visits", format: { places: 2 } },
-                { fieldName: "trade_area_ring", label: "Trade Area Ring" },
-                { fieldName: "population", label: "CBG Land Area (sqm)", format: { digitSeparator: true, places: 0 } }
-              ]}]
-            }
+        tradeAreaLayer = new FeatureLayer({
+          source: [], objectIdField: "ObjectID",
+          geometryType: "polygon",
+          spatialReference: { wkid: 4326 },
+          fields: [
+            { name: "ObjectID", type: "oid" },
+            { name: "cbg_fips", type: "string" },
+            { name: "poi_id", type: "string" },
+            { name: "poi_name", type: "string" },
+            { name: "visits", type: "integer" },
+            { name: "visit_pct", type: "double" },
+            { name: "cumulative_pct", type: "double" },
+            { name: "trade_area_ring", type: "string" },
+            { name: "population", type: "integer" }
+          ],
+          title: "Visitor Trade Areas (CBG)",
+          visible: false,
+          renderer: tradeAreaRingRenderer,
+          popupTemplate: {
+            title: "CBG: {cbg_fips}",
+            content: [{ type: "fields", fieldInfos: [
+              { fieldName: "poi_name", label: "Store" },
+              { fieldName: "visits", label: "Visits from CBG", format: { digitSeparator: true, places: 0 } },
+              { fieldName: "visit_pct", label: "% of Total Visits", format: { places: 2 } },
+              { fieldName: "trade_area_ring", label: "Trade Area Ring" },
+              { fieldName: "population", label: "CBG Population Est.", format: { digitSeparator: true, places: 0 } }
+            ]}]
+          }
+        });
+        map.add(tradeAreaLayer, 0);
+
+        // Load trade area data in background and index by poi_id
+        fetch("data/placer_trade_areas.geojson")
+          .then(r => r.json())
+          .then(geojson => {
+            tradeAreaData = {};
+            geojson.features.forEach(f => {
+              const pid = f.properties.poi_id;
+              if (!tradeAreaData[pid]) tradeAreaData[pid] = [];
+              tradeAreaData[pid].push(f);
+            });
+            tradeAreaAvailable = true;
+            console.log("Trade area data loaded:", Object.keys(tradeAreaData).length, "POIs");
+          })
+          .catch(err => {
+            tradeAreaAvailable = false;
+            console.log("Trade area data not available:", err);
           });
-          map.add(tradeAreaLayer, 0);
-          tradeAreaLayer.when(() => { tradeAreaAvailable = true; })
-            .catch(() => { tradeAreaAvailable = false; console.log("Trade area data not available."); });
-        } catch (e) {
-          tradeAreaAvailable = false;
-          console.log("Trade area layer could not be created:", e);
-        }
 
         // --- Placer AI Layer ---
         const renderer = {
@@ -746,32 +770,7 @@
 
           // --- Trade Area + Distance Bands ---
           renderDistanceBands(storeAttrs);
-          if (storeAttrs && storeAttrs.placer_id && tradeAreaAvailable && tradeAreaLayer) {
-            const placerId = storeAttrs.placer_id;
-            tradeAreaLayer.definitionExpression = `poi_id = '${placerId}'`;
-            tradeAreaLayer.visible = true;
-            document.getElementById("tradeAreaSwitch").checked = true;
-            tradeAreaLayer.renderer = currentTAView === "density" ? tradeAreaChoroplethRenderer : tradeAreaRingRenderer;
-            try {
-              const taQuery = tradeAreaLayer.createQuery();
-              taQuery.where = `poi_id = '${placerId}'`;
-              taQuery.outFields = ["*"];
-              taQuery.returnGeometry = false;
-              const taResult = await tradeAreaLayer.queryFeatures(taQuery);
-              renderTradeAreaPanel(taResult.features || [], label);
-            } catch (e) {
-              console.log("Trade area query failed:", e);
-              renderTradeAreaPanel([], label);
-            }
-          } else {
-            if (!storeAttrs) {
-              document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Trade area data is only available for Placer AI store locations. Select a store from the dropdown to see catchment areas.</div>';
-            } else if (!tradeAreaAvailable) {
-              document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Trade area data not available. Run <code>aggregate_data.py</code> with the Origins feed to generate <code>placer_trade_areas.geojson</code>.</div>';
-            } else {
-              renderTradeAreaPanel([], label);
-            }
-          }
+          await loadTradeAreaForPOI(storeAttrs, label, Graphic, Polygon);
         }
 
         // --- GeoEnrichment ---
@@ -1031,6 +1030,73 @@
           document.getElementById("recsContent").innerHTML = html;
         }
 
+        // --- Load Trade Area for a POI ---
+        async function loadTradeAreaForPOI(storeAttrs, label, Gfx, PolygonClass) {
+          // Clear previous trade area features
+          try {
+            const existing = await tradeAreaLayer.queryFeatures();
+            if (existing.features.length > 0) {
+              await tradeAreaLayer.applyEdits({ deleteFeatures: existing.features });
+            }
+          } catch (e) { /* empty layer */ }
+
+          if (!storeAttrs || !storeAttrs.placer_id) {
+            document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Trade area data is only available for Placer AI store locations. Select a store from the dropdown to see catchment areas.</div>';
+            return;
+          }
+
+          if (!tradeAreaAvailable || !tradeAreaData) {
+            document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">Trade area data is loading or not available. Run <code>generate_trade_areas.py</code> to generate <code>placer_trade_areas.geojson</code>.</div>';
+            return;
+          }
+
+          const placerId = storeAttrs.placer_id;
+          const poiFeatures = tradeAreaData[placerId];
+          if (!poiFeatures || poiFeatures.length === 0) {
+            document.getElementById("tradeAreaContent").innerHTML = '<div style="color:#7b8a9e;font-size:0.85em;">No trade area data available for this location.</div>';
+            return;
+          }
+
+          // Convert GeoJSON features to ArcGIS Graphics and add to FeatureLayer
+          const graphics = poiFeatures.map((f, i) => {
+            const geom = f.geometry;
+            let rings;
+            if (geom.type === "Polygon") {
+              rings = geom.coordinates;
+            } else if (geom.type === "MultiPolygon") {
+              // Flatten multipolygon to first polygon for simplicity
+              rings = geom.coordinates[0];
+            } else {
+              return null;
+            }
+
+            return new Gfx({
+              geometry: new PolygonClass({ rings: rings, spatialReference: { wkid: 4326 } }),
+              attributes: {
+                ObjectID: i,
+                cbg_fips: f.properties.cbg_fips,
+                poi_id: f.properties.poi_id,
+                poi_name: f.properties.poi_name,
+                visits: f.properties.visits,
+                visit_pct: f.properties.visit_pct,
+                cumulative_pct: f.properties.cumulative_pct,
+                trade_area_ring: f.properties.trade_area_ring,
+                population: f.properties.population
+              }
+            });
+          }).filter(g => g !== null);
+
+          if (graphics.length > 0) {
+            await tradeAreaLayer.applyEdits({ addFeatures: graphics });
+            tradeAreaLayer.visible = true;
+            document.getElementById("tradeAreaSwitch").checked = true;
+            tradeAreaLayer.renderer = currentTAView === "density" ? tradeAreaChoroplethRenderer : tradeAreaRingRenderer;
+          }
+
+          // Render panel using the raw GeoJSON feature properties
+          renderTradeAreaPanel(poiFeatures, label);
+        }
+
         // --- Render Trade Area Panel ---
         function renderTradeAreaPanel(features, label) {
           const el = document.getElementById("tradeAreaContent");
@@ -1039,11 +1105,13 @@
             return;
           }
 
-          const primary = features.filter(f => f.attributes.trade_area_ring === "primary");
-          const secondary = features.filter(f => f.attributes.trade_area_ring === "secondary");
-          const tertiary = features.filter(f => f.attributes.trade_area_ring === "tertiary");
-          const totalVisits = features.reduce((s, f) => s + (f.attributes.visits || 0), 0);
-          const primaryVisits = primary.reduce((s, f) => s + (f.attributes.visits || 0), 0);
+          // Support both raw GeoJSON (.properties) and ArcGIS (.attributes)
+          const getAttr = (f) => f.properties || f.attributes || {};
+          const primary = features.filter(f => getAttr(f).trade_area_ring === "primary");
+          const secondary = features.filter(f => getAttr(f).trade_area_ring === "secondary");
+          const tertiary = features.filter(f => getAttr(f).trade_area_ring === "tertiary");
+          const totalVisits = features.reduce((s, f) => s + (getAttr(f).visits || 0), 0);
+          const primaryVisits = primary.reduce((s, f) => s + (getAttr(f).visits || 0), 0);
           const concentration = totalVisits > 0 ? Math.round((primaryVisits / totalVisits) * 100) : 0;
 
           let html = '';
@@ -1078,12 +1146,12 @@
           }
 
           // Top CBGs
-          const sorted = [...features].sort((a, b) => (b.attributes.visits || 0) - (a.attributes.visits || 0));
+          const sorted = [...features].sort((a, b) => (getAttr(b).visits || 0) - (getAttr(a).visits || 0));
           const top10 = sorted.slice(0, 10);
-          const maxVisits = top10.length > 0 ? top10[0].attributes.visits : 1;
+          const maxVisits = top10.length > 0 ? getAttr(top10[0]).visits : 1;
           html += '<div class="section-title" style="margin-top:10px;">Top CBGs by Visit Volume</div>';
           top10.forEach(f => {
-            const a = f.attributes;
+            const a = getAttr(f);
             const pct = Math.round((a.visits / maxVisits) * 100);
             const ring = a.trade_area_ring || "tertiary";
             const ringColors = { primary: "#7c3aed", secondary: "#06b6d4", tertiary: "#f97316" };
@@ -1140,7 +1208,9 @@
         // --- Clear trade area on brand change ---
         document.getElementById("brandSelect").addEventListener("calciteSelectChange", () => {
           if (tradeAreaLayer) {
-            tradeAreaLayer.definitionExpression = "1=0";
+            tradeAreaLayer.queryFeatures().then(r => {
+              if (r.features.length) tradeAreaLayer.applyEdits({ deleteFeatures: r.features });
+            });
             tradeAreaLayer.visible = false;
             document.getElementById("tradeAreaSwitch").checked = false;
           }
